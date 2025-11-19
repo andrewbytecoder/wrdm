@@ -3,7 +3,7 @@ import {createApp} from 'vue'
 import { createI18n } from 'vue-i18n'
 import App from './App.vue'
 import { lang } from './langs'
-import './style.css';
+import './style.scss';
 
 const app = createApp(App)
 
