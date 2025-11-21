@@ -50,7 +50,8 @@ const onCurrentSelectChange = ({ type, group = '', server = '', db = 0, key = ''
     // load and update content value
   }
 }
-watch(() => connectionStore.currentSelect, throttle(onCurrentSelectChange, 1000))
+
+// watch(() => connectionStore.currentSelect, throttle(onCurrentSelectChange, 1000))
 
 const items = ref<TabItem[]>(props.modelValue as TabItem[])
 const selIndex = ref(props.selectedIndex)

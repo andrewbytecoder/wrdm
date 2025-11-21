@@ -106,7 +106,7 @@ const onAdd = async () => {
     if (success) {
       dialogStore.closeNewKeyDialog()
     } else {
-      message.error(msg)
+      message.error(msg || i18n.t('handle_fail'))
     }
   } catch (e: any) {
     message.error(e.message)

@@ -72,10 +72,10 @@ const useDialogStore = defineStore('dialog', {
             this.renameDialogVisible = false
         },
 
-        openNewKeyDialog(prefix: string, server: string, db: number) {
+        openNewKeyDialog(prefix: string, server?: string, db?: number) {
             this.newKeyParam.prefix = prefix
-            this.newKeyParam.server = server
-            this.newKeyParam.db = db
+            this.newKeyParam.server = server ?? ''
+            this.newKeyParam.db = db ?? 0
             this.newKeyDialogVisible = true
         },
         closeNewKeyDialog() {

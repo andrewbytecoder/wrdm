@@ -67,8 +67,8 @@ const scoreColumn = reactive<DataTableColumn<TableRow>>({
     if (isEdit) {
       return h(NInputNumber, {
         value: currentEditRow.value.score,
-        'onUpdate:value': (val: number) => {
-          currentEditRow.value.score = val
+        'onUpdate:value': (val: number| null) => {
+          currentEditRow.value.score = val || 0
         },
       })
     } else {
@@ -93,7 +93,7 @@ const valueColumn = reactive<DataTableColumn<TableRow>>({
       return h(NInput, {
         value: currentEditRow.value.value || '',
         type: 'textarea',
-        autosize: { minRow: 2, maxRows: 5 },
+        autosize: { minRows: 2, maxRows: 5 },
         style: 'text-align: left;',
         'onUpdate:value': (val: string) => {
           currentEditRow.value.value = val
@@ -133,7 +133,7 @@ const actionColumn: DataTableColumn<TableRow> = {
             connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!).then((r) => {})
             message.success(i18n.t('delete_key_succ', { key: row.value }))
           } else {
-            message.error(msg)
+            message.error(msg || i18n.t('delete_key_fail'))
           }
         } catch (e: any) {
           message.error(e.message)
@@ -158,7 +158,7 @@ const actionColumn: DataTableColumn<TableRow> = {
             connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!).then((r) => {})
             message.success(i18n.t('save_value_succ'))
           } else {
-            message.error(msg)
+            message.error(msg || i18n.t('save_value_fail'))
           }
         } catch (e: any) {
           message.error(e.message)
@@ -208,7 +208,7 @@ const onAddRow = () => {
 const filterValue = ref<string>('')
 
 const onFilterInput = (val: string) => {
-  valueColumn.filterOptionValue = val
+  // valueColumn.filterOptionValue = val
 }
 
 const onChangeFilterType = (type: number) => {
@@ -216,11 +216,11 @@ const onChangeFilterType = (type: number) => {
 }
 
 const clearFilter = () => {
-  valueColumn.filterOptionValue = null
+  // valueColumn.filterOptionValue = null
 }
 
 const onUpdateFilter = (filters: Record<string, string>, sourceColumn: DataTableColumn<TableRow>) => {
-  valueColumn.filterOptionValue = filters[sourceColumn.key as string]
+  // valueColumn.filterOptionValue = filters[sourceColumn.key as string]
 }
 </script>
 
@@ -247,7 +247,7 @@ const onUpdateFilter = (filters: Record<string, string>, sourceColumn: DataTable
     </div>
     <div class="fill-height flex-box-h" style="user-select: text">
       <n-data-table
-          :key="(row) => row.no"
+          :key="(row: TableRow) => row.no"
           :columns="columns"
           :data="tableData"
           :single-column="true"

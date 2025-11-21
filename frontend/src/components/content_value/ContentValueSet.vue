@@ -15,6 +15,7 @@ interface SetValue extends Array<string> {}
 
 interface TableRow {
   no: number
+  key: string
   value: string
 }
 
@@ -54,7 +55,12 @@ const valueColumn = reactive<DataTableColumn<TableRow>>({
   title: i18n.t('value'),
   align: 'center',
   titleAlign: 'center',
-  filterOptionValue: null,
+  // 使用正确的 filterOptions 属性
+  // filterOptions: [
+  //   { label: '选项1', value: 'option1' },
+  //   { label: '选项2', value: 'option2' },
+  // ],
+  // filterOptionValue: null,
   filter(value, row) {
     return !!~row.value.indexOf(value.toString())
   },
@@ -64,7 +70,7 @@ const valueColumn = reactive<DataTableColumn<TableRow>>({
       return h(NInput, {
         value: currentEditRow.value.value || '',
         type: 'textarea',
-        autosize: { minRow: 2, maxRows: 5 },
+        autosize: { minRows: 2, maxRows: 5 },
         style: 'text-align: left;',
         'onUpdate:value': (val: string) => {
           currentEditRow.value.value = val
@@ -94,7 +100,7 @@ const actionColumn: DataTableColumn<TableRow> = {
       },
       onDelete: async () => {
         try {
-          const { success, msg } = await connectionStore.removeSetItem(
+          const { msg, success } = await connectionStore.removeSetItem(
               props.name!,
               props.db!,
               props.keyPath!,
@@ -104,7 +110,7 @@ const actionColumn: DataTableColumn<TableRow> = {
             connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!).then((r) => {})
             message.success(i18n.t('delete_key_succ', { key: row.value }))
           } else {
-            message.error(msg)
+            message.error("")
           }
         } catch (e: any) {
           message.error(e.message)
@@ -123,7 +129,7 @@ const actionColumn: DataTableColumn<TableRow> = {
             connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!).then((r) => {})
             message.success(i18n.t('save_value_succ'))
           } else {
-            message.error(msg)
+            message.error("")
           }
         } catch (e: any) {
           message.error(e.message)
@@ -157,8 +163,9 @@ const tableData = computed<TableRow[]>(() => {
   const len = size(props.value)
   for (let i = 0; i < len; i++) {
     data.push({
+      key: "",
       no: i + 1,
-      value: props.value[i],
+      value: props.value[i]
     })
   }
   return data
@@ -166,22 +173,23 @@ const tableData = computed<TableRow[]>(() => {
 
 const message = useMessage()
 
-const onAddValue = (value: string) => {
+const onAddValue = () => {
   dialogStore.openAddFieldsDialog(props.name!, props.db!, props.keyPath!, types.SET)
 }
 
 const filterValue = ref<string>('')
 
 const onFilterInput = (val: string) => {
-  valueColumn.filterOptionValue = val
+
+  // valueColumn.filterOptionValue = val
 }
 
 const clearFilter = () => {
-  valueColumn.filterOptionValue = null
+  // valueColumn.filterOptionValue = null
 }
 
 const onUpdateFilter = (filters: Record<string, string>, sourceColumn: DataTableColumn<TableRow>) => {
-  valueColumn.filterOptionValue = filters[sourceColumn.key as string]
+  // valueColumn.filterOptionValue = filters[sourceColumn.key as string]
 }
 </script>
 
@@ -208,7 +216,7 @@ const onUpdateFilter = (filters: Record<string, string>, sourceColumn: DataTable
     </div>
     <div class="fill-height flex-box-h" style="user-select: text">
       <n-data-table
-          :key="(row) => row.no"
+          :key="(row: TableRow) => row.no"
           :columns="columns"
           :data="tableData"
           :single-column="true"

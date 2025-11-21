@@ -6,7 +6,7 @@ import Edit from './icons/Edit.vue'
 import Refresh from './icons/Refresh.vue'
 import Timer from './icons/Timer.vue'
 import RedisTypeTag from './RedisTypeTag.vue'
-import useConnectionStore from '../stores/connection.ts'
+import useConnectionStore from '../stores/connection.js'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
 import IconButton from './IconButton.vue'
@@ -71,7 +71,7 @@ const onConfirmDelete = async () => {
         </template>
         TTL
       </n-tooltip>
-      <n-button @click="dialogStore.openRenameKeyDialog(props.server, props.db, props.keyPath)">
+      <n-button @click="dialogStore.openRenameKeyDialog(props.server ?? '', props.db ?? 0, props.keyPath ?? '')">
         <template #icon>
           <n-icon :component="Edit" size="18" />
         </template>

@@ -67,7 +67,7 @@ const onUpdate = (): void => {
 
 <template>
   <n-form-item :label="$t('type')">
-    <n-radio-group :value="props.type" @update:value="(val) => emit('update:type', val)">
+    <n-radio-group :value="props.type" @update:value="(val: number) => emit('update:type', val)">
       <n-radio-button v-for="(op, i) in updateOption" :key="i" :label="op.label" :value="op.value" />
     </n-radio-group>
   </n-form-item>

@@ -67,7 +67,7 @@ interface OpenDatabaseResponse {
 
 interface GetKeyValueResponse {
     data: {
-        type: number
+        type: string
         ttl: number
         value: any
     }
@@ -151,7 +151,7 @@ interface SelectParams {
 interface UpsertTabParams {
     server: string
     db: number
-    type: number
+    type: string
     ttl: number
     key: string
     value: any

@@ -101,7 +101,7 @@ const valueColumn = reactive<DataTableColumn<TableRow>>({
   align: 'center',
   titleAlign: 'center',
   resizable: true,
-  filterOptionValue: null,
+  // filterOptionValue: null,
   filter(value, row) {
     return !!~row.value.indexOf(value.toString())
   },
@@ -111,7 +111,7 @@ const valueColumn = reactive<DataTableColumn<TableRow>>({
       return h(NInput, {
         value: currentEditRow.value.value || '',
         type: 'textarea',
-        autosize: { minRow: 2, maxRows: 5 },
+        autosize: { minRows: 2, maxRows: 5 },
         style: 'text-align: left;',
         'onUpdate:value': (val: string) => {
           currentEditRow.value.value = val
@@ -151,7 +151,7 @@ const actionColumn: DataTableColumn<TableRow> = {
             connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!).then((r) => {})
             message.success(i18n.t('delete_key_succ', { key: row.key }))
           } else {
-            message.error(msg)
+            message.error(msg|| i18n.t('delete_key_fail'))
           }
         } catch (e: any) {
           message.error(e.message)
@@ -171,7 +171,7 @@ const actionColumn: DataTableColumn<TableRow> = {
             connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!).then((r) => {})
             message.success(i18n.t('save_value_succ'))
           } else {
-            message.error(msg)
+            message.error(msg|| i18n.t('delete_key_fail'))
           }
         } catch (e: any) {
           message.error(e.message)
@@ -223,12 +223,12 @@ const filterValue = ref<string>('')
 const onFilterInput = (val: string) => {
   switch (filterType.value) {
     case filterOption[0].value:
-      valueColumn.filterOptionValue = null
-      fieldColumn.filterOptionValue = val
+      // valueColumn.filterOptionValue = null
+      // fieldColumn.filterOptionValue = val
       break
     case filterOption[1].value:
-      fieldColumn.filterOptionValue = null
-      valueColumn.filterOptionValue = val
+      // fieldColumn.filterOptionValue = null
+      // valueColumn.filterOptionValue = val
       break
   }
 }
@@ -238,17 +238,17 @@ const onChangeFilterType = (type: number) => {
 }
 
 const clearFilter = () => {
-  fieldColumn.filterOptionValue = null
-  valueColumn.filterOptionValue = null
+  // fieldColumn.filterOptionValue = null
+  // valueColumn.filterOptionValue = null
 }
 
 const onUpdateFilter = (filters: Record<string, string>, sourceColumn: DataTableColumn<TableRow>) => {
   switch (filterType.value) {
     case filterOption[0].value:
-      fieldColumn.filterOptionValue = filters[sourceColumn.key as string]
+      // fieldColumn.filterOptionValue = filters[sourceColumn.key as string]
       break
     case filterOption[1].value:
-      valueColumn.filterOptionValue = filters[sourceColumn.key as string]
+      // valueColumn.filterOptionValue = filters[sourceColumn.key as string]
       break
   }
 }
@@ -286,7 +286,7 @@ const onUpdateFilter = (filters: Record<string, string>, sourceColumn: DataTable
     </div>
     <div class="fill-height flex-box-h" style="user-select: text">
       <n-data-table
-          :key="(row) => row.no"
+          :key="(row: TableRow) => row.no"
           :columns="columns"
           :data="tableData"
           :single-column="true"

@@ -93,7 +93,7 @@ watch(
         newForm.server = server
         newForm.db = db
         newForm.key = key
-        newForm.type = type
+        newForm.type = type || ""
         newForm.opType = 0
         newForm.value = null
       }
@@ -126,7 +126,7 @@ const onAdd = async () => {
           }
           message.success(i18n.t('handle_succ'))
         } else {
-          message.error(msg)
+          message.error(msg || i18n.t('handle_fail'))
         }
       }
         break
@@ -140,7 +140,7 @@ const onAdd = async () => {
           }
           message.success(i18n.t('handle_succ'))
         } else {
-          message.error(msg)
+          message.error(msg || i18n.t('handle_fail'))
         }
       }
         break
@@ -154,7 +154,7 @@ const onAdd = async () => {
           }
           message.success(i18n.t('handle_succ'))
         } else {
-          message.error(msg)
+          message.error(msg || i18n.t('handle_fail'))
         }
       }
         break
@@ -168,7 +168,7 @@ const onAdd = async () => {
           }
           message.success(i18n.t('handle_succ'))
         } else {
-          message.error(msg)
+          message.error(msg || i18n.t('handle_fail'))
         }
       }
         break

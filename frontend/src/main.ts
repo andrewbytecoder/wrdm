@@ -12,7 +12,6 @@ app.use(
         locale: 'en',
         fallbackLocale: 'en',
         globalInjection: true,
-        legacy: false,
         messages: {
             ...lang,
         },

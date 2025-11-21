@@ -20,7 +20,7 @@ const emit = defineEmits<{
         :value="props.value"
         placeholder=""
         type="textarea"
-        @input="(val) => emit('update:value', val)"
+        @input="(val:  string) => emit('update:value', val)"
     />
   </n-form-item>
 </template>

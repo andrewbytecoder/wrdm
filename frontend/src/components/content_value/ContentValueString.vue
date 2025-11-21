@@ -162,7 +162,7 @@ const onSaveValue = async () => {
       await connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!)
       message.success(i18n.t('save_value_succ'))
     } else {
-      message.error(msg)
+      message.error(msg || i18n.t('save_value_fail'))
     }
   } catch (e: any) {
     message.error(e.message)

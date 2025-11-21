@@ -7,7 +7,7 @@ export interface TabItem {
     blank: boolean
     title?: string
     icon?: string
-    type?: number
+    type?: string
     value?: any
     server?: string
     db?: number
@@ -72,7 +72,7 @@ const useTabStore = defineStore('tab', {
         upsertTab({ server, db, type, ttl, key, value }: {
             server: string
             db: number
-            type?: number
+            type?: string
             ttl?: number
             key?: string
             value?: any

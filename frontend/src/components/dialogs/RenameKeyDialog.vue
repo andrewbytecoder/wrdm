@@ -46,7 +46,7 @@ const onRename = async () => {
       await connectionStore.loadKeyValue(server, db, newKey)
       message.success(i18n.t('handle_succ'))
     } else {
-      message.error(msg)
+      message.error(msg || i18n.t('handle_fail'))
     }
   } catch (e: any) {
     message.error(e.message)

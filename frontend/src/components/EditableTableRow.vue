@@ -4,7 +4,7 @@ import type { PropType } from 'vue'
 
 interface Props {
   isEdit?: boolean
-  value?: string | number
+  value?: string | [string, string] | null | undefined
   onUpdateValue?: Function | Array<any>
 }
 

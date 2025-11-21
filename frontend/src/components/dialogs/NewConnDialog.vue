@@ -80,14 +80,14 @@ const advanceFormRef = ref<FormInst | null>(null)
 
 const onCreateConnection = async () => {
   // Validate general form
-  await generalFormRef.value?.validate((errors: Array<FormValidationError>) => {
+  await generalFormRef.value?.validate((errors) => {
     if (errors) {
       nextTick(() => (tab.value = 'general'))
     }
   })
 
   // Validate advance form
-  await advanceFormRef.value?.validate((errors: Array<FormValidationError>) => {
+  await advanceFormRef.value?.validate((errors) => {
     if (errors) {
       nextTick(() => (tab.value = 'advanced'))
     }
