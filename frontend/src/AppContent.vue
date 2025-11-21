@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import ContentPane from './components/ContentPane.vue'
 import NavigationPane from './components/NavigationPane.vue'
-import NavMenu from './components/NavMenu.vue'
 import { computed, nextTick, onMounted, provide, reactive, ref, Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { GetPreferences } from '../wailsjs/go/storage/PreferencesStorage.js'
 import { get } from 'lodash'
 import { useThemeVars } from 'naive-ui'
+import NavMenu from './components/NavMenu.vue'
 // import type { GlobalThemeVars } from 'naive-ui'
 
 // 定义响应式数据类型

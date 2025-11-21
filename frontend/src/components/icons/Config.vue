@@ -17,10 +17,10 @@ const props = defineProps({
             stroke-linejoin="round"
         />
         <path
-            :stroke-width="props.strokeWidth"
-            d="M24 30C27.3137 30 30 27.3137 30 24C30 20.6863 27.3137 18 24 18C20.6863 18 18 20.6863 18 24C18 27.3137 20.6863 30 24 30Z"
+            :stroke-width="strokeWidth"
             fill="none"
             stroke="currentColor"
+            d="M24 31C27.866 31 31 27.866 31 24C31 20.134 27.866 17 24 17C20.134 17 17 20.134 17 24C17 27.866 20.134 31 24 31Z"
             stroke-linejoin="round"
         />
     </svg>

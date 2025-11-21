@@ -5,7 +5,13 @@ import useTabStore from '../../stores/tab.js'
 import useConnectionStore from '../../stores/connection.js'
 import { useMessage } from 'naive-ui'
 import type { TabItem } from '../../stores/tab.js'
-
+import {
+  NForm,
+  NFormItem,
+  NInputNumber,
+  NButton,
+  // 其他需要的组件...
+} from 'naive-ui'
 interface TtlForm {
   ttl: number
 }
