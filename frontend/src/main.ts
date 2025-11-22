@@ -80,6 +80,7 @@ app.component('NInputGroup', NInputGroup)
 
 app.use(
     createI18n({
+        legacy: false,
         locale: 'en',
         fallbackLocale: 'en',
         globalInjection: true,

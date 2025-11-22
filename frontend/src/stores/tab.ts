@@ -49,15 +49,16 @@ const useTabStore = defineStore('tab', {
             return this.tabs[this.activatedIndex] || null
         },
 
-        newBlankTab(): void {
-            this.tabList.push({
-                name: Date.now().toString(),
-                title: 'new tab',
-                blank: true,
-            })
-            this.activatedIndex = size(this.tabList) - 1
-        },
+        // newBlankTab(): void {
+        //     this.tabList.push({
+        //         name: Date.now().toString(),
+        //         title: 'new tab',
+        //         blank: true,
+        //     })
+        //     this.activatedIndex = size(this.tabList) - 1
+        // },
     },
+
 
     actions: {
         newBlankTab(): void {
