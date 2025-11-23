@@ -44,7 +44,7 @@ const useDialogStore = defineStore('dialog', {
             server: '',
             db: 0,
             key: '',
-        } as RenameKeyParam,
+        }  as RenameKeyParam,
 
         renameDialogVisible: false,
 

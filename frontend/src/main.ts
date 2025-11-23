@@ -43,6 +43,7 @@ import './style.scss';
 
 const app = createApp(App)
 
+// 全局组件注册，注册之后所有组件都可以使用
 app.component('NForm', NForm)
 app.component('NFormItem', NFormItem)
 app.component('NInputNumber', NInputNumber)

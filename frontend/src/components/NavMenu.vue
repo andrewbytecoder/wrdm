@@ -25,7 +25,7 @@ const renderIcon = (icon: any) => {
 
 const i18n = useI18n()
 
-// 主菜单选项
+// 主菜单选项, 计算属性，必函数强的点是只有监听的变量改变时才会重新计算
 const menuOptions = computed<MenuOption[]>(() => {
   return [
     {
@@ -42,7 +42,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   ]
 })
 
-// 偏好设置菜单选项
+// 偏好设置菜单选项, 计算属性，只有监听的变量改变时才会重新计算
 const preferencesOptions = computed<DropdownOption[]>(() => {
   return [
     {
@@ -61,14 +61,14 @@ const preferencesOptions = computed<DropdownOption[]>(() => {
   ]
 })
 
-// 渲染上下文标签
+// 渲染上下文标签, 函数组件，返回一个 VNode
 const renderContextLabel = (option: DropdownOption) => {
   return h('div', { class: 'context-menu-item' }, option.label as string)
 }
 
 const dialogStore = useDialogStore()
 
-// 处理偏好设置菜单选择
+// 处理偏好设置菜单选择, 函数，根据选择的菜单项执行相应的操作
 const onSelectPreferenceMenu = (key: MenuItemKey) => {
   switch (key) {
     case 'preferences':
