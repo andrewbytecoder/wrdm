@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import ContentPane from './components/content/ContentPane.vue'
-import NewConnDialog from './components/dialogs/NewConnDialog.vue'
+import ConnectionDialog from './components/dialogs/ConnectionDialog.vue'
 import NewKeyDialog from './components/dialogs/NewKeyDialog.vue'
 import PreferencesDialog from './components/dialogs/PreferencesDialog.vue'
 import RenameKeyDialog from './components/dialogs/RenameKeyDialog.vue'
@@ -66,7 +65,7 @@ const themeOverrides = {
         <AppContent />
 
         <!-- 5. 所有全局的模态对话框 -->
-        <NewConnDialog />
+        <ConnectionDialog />
         <NewKeyDialog />
         <AddFieldsDialog />
         <RenameKeyDialog />

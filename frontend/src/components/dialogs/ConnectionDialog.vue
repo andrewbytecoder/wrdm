@@ -1,33 +1,36 @@
 <script setup lang="ts">
-import { isEmpty } from 'lodash'
+import { get, isEmpty, map } from 'lodash'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { SaveConnection, TestConnection } from '../../../wailsjs/go/services/connectionService.js'
+import { TestConnection } from '../../../wailsjs/go/services/connectionService.js'
 import useDialog from '../../stores/dialog'
 import { useMessage, FormInst, FormRules, FormValidationError } from 'naive-ui'
 import Close from '../icons/Close.vue'
-import type { Component } from 'vue'
+import useConnectionStore from '../../stores/connections.js'
+import {types} from "../../../wailsjs/go/models";
 
-interface GeneralForm {
-  group: string
-  name: string
-  addr: string
-  port: number
-  username: string
-  password: string
-  defaultFilter: string
-  keySeparator: string
-  connTimeout: number
-  execTimeout: number
-  markColor: string
-}
+// interface GeneralForm {
+//   group: string
+//   name: string
+//   addr: string
+//   port: number
+//   username: string
+//   password: string
+//   defaultFilter: string
+//   keySeparator: string
+//   connTimeout: number
+//   execTimeout: number
+//   markColor: string
+// }
+
+
 
 interface TestConnectionResponse {
   success?: boolean
   msg: string
 }
 
-const generalFormValue: GeneralForm = {
+const generalFormValue: types.Connection = {
   group: '',
   name: '',
   addr: '127.0.0.1',
@@ -41,10 +44,16 @@ const generalFormValue: GeneralForm = {
   markColor: '',
 }
 
+/**
+ * Dialog for create or edit connection
+ */
+const dialogStore = useDialog()
+const connectionStore = useConnectionStore()
 const message = useMessage()
 const i18n = useI18n()
 
-const generalForm = ref<GeneralForm>(Object.assign({}, generalFormValue))
+const editName = ref<string>('')
+const generalForm = ref(generalFormValue)
 
 const generalFormRules = (): FormRules => {
   const requiredMsg = i18n.t('field_required')
@@ -55,6 +64,22 @@ const generalFormRules = (): FormRules => {
     keySeparator: { required: true, message: requiredMsg, trigger: 'input' },
   }
 }
+
+const isEditMode = computed(() => {
+  return !isEmpty(editName.value)
+})
+
+const groupOptions = computed(() => {
+  const options = map(connectionStore.groups, (group:string) => ({
+    value: group,
+    label: group,
+  }))
+  options.splice(0, 0, {
+    value: '',
+    label: i18n.t('no_group'),
+  })
+  return options
+})
 
 const tab = ref<string>('general')
 const testing = ref<boolean>(false)
@@ -74,14 +99,15 @@ const formLabelWidth = computed<string>(() => {
   return '80px'
 })
 const predefineColors = ref<string[]>(['', '#FE5959', '#FEC230', '#FEF27F', '#6CEFAF', '#46C3FC', '#B388FC', '#B0BEC5'])
-const dialogStore = useDialog()
+
 const generalFormRef = ref<FormInst | null>(null)
 const advanceFormRef = ref<FormInst | null>(null)
 
-const onCreateConnection = async () => {
+const onSaveConnection = async () => {
   // Validate general form
   await generalFormRef.value?.validate((errors) => {
     if (errors) {
+      // Dom更新的下一个时间段
       nextTick(() => (tab.value = 'general'))
     }
   })
@@ -93,8 +119,8 @@ const onCreateConnection = async () => {
     }
   })
 
-  // Store new connection
-  const { success, msg } = await SaveConnection(generalForm.value, false)
+  // Store new connection Promise返回的结果需要进行  await
+  const { success, msg } = await connectionStore.saveConnection(editName.value, generalForm.value)
   if (!success) {
     message.error(msg)
     return
@@ -105,15 +131,21 @@ const onCreateConnection = async () => {
 }
 
 const resetForm = () => {
-  generalForm.value = Object.assign({}, generalFormValue)
+  generalForm.value = connectionStore.newDefaultConnection("")
   generalFormRef.value?.restoreValidation()
   showTestResult.value = false
   testResult.value = ''
+  tab.value = 'general'
 }
 
 watch(
-    () => dialogStore.newDialogVisible,
-    (visible) => {}
+    () => dialogStore.connDialogVisible,
+    (visible) => {
+      if (visible) {
+        editName.value = get(dialogStore.connParam, 'name', '')
+        generalForm.value = dialogStore.connParam || connectionStore.newDefaultConnection("")
+      }
+    }
 )
 
 const onTestConnection = async () => {
@@ -147,13 +179,13 @@ const onClose = () => {
 
 <template>
   <n-modal
-      v-model:show="dialogStore.newDialogVisible"
+      v-model:show="dialogStore.connDialogVisible"
       :closable="false"
       :close-on-esc="false"
       :mask-closable="false"
       :on-after-leave="resetForm"
       :show-icon="false"
-      :title="$t('new_conn_title')"
+      :title="isEditMode ? $t('edit_conn_title') : $t('new_conn_title')"
       preset="dialog"
       transform-origin="center"
   >
@@ -170,6 +202,9 @@ const onClose = () => {
         >
           <n-form-item :label="$t('conn_name')" path="name" required>
             <n-input v-model:value="generalForm.name" :placeholder="$t('conn_name_tip')" />
+          </n-form-item>
+          <n-form-item :label="$t('conn_group')" required>
+            <n-select v-model:value="generalForm.group" :options="groupOptions"></n-select>
           </n-form-item>
           <n-form-item :label="$t('conn_addr')" path="addr" required>
             <n-input v-model:value="generalForm.addr" :placeholder="$t('conn_addr_tip')" />
@@ -255,7 +290,9 @@ const onClose = () => {
       </div>
       <div class="flex-item n-dialog__action">
         <n-button @click="onClose">{{ $t('cancel') }}</n-button>
-        <n-button type="primary" @click="onCreateConnection">{{ $t('confirm') }}</n-button>
+        <n-button type="primary" @click="onSaveConnection">
+          {{ isEditMode ? $t('update') : $t('confirm') }}
+        </n-button>
       </div>
     </template>
   </n-modal>

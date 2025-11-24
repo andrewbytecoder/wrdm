@@ -13,11 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	redis2 "rdm/backend/utils/redis"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-type connectionService struct {
+type ConnectionService struct {
 	ctx     context.Context
 	conns   *ConnectionsStorage
 	connMap map[string]connectionItem
@@ -33,13 +35,13 @@ type keyItem struct {
 	Type string `json:"t"`
 }
 
-var connection *connectionService
+var connection *ConnectionService
 var onceConnection sync.Once
 
-func Connection() *connectionService {
+func Connection() *ConnectionService {
 	if connection == nil {
 		onceConnection.Do(func() {
-			connection = &connectionService{
+			connection = &ConnectionService{
 				conns:   NewConnections(),
 				connMap: map[string]connectionItem{},
 			}
@@ -48,11 +50,11 @@ func Connection() *connectionService {
 	return connection
 }
 
-func (c *connectionService) Start(ctx context.Context) {
+func (c *ConnectionService) Start(ctx context.Context) {
 	c.ctx = ctx
 }
 
-func (c *connectionService) Stop(ctx context.Context) {
+func (c *ConnectionService) Stop(ctx context.Context) {
 	for _, item := range c.connMap {
 		if item.rdb != nil {
 			item.cancelFunc()
@@ -62,7 +64,9 @@ func (c *connectionService) Stop(ctx context.Context) {
 	c.connMap = map[string]connectionItem{}
 }
 
-func (c *connectionService) TestConnection(host string, port int, username, password string) (resp types.JSResp) {
+func (c *ConnectionService) TestConnection(host string, port int, username, password string) (resp types.JSResp) {
+	runtime.LogDebug(c.ctx, fmt.Sprintf("test connection: %s:%d, username: %s", host, port, username))
+	fmt.Println(host, port, username, password)
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", host, port),
 		Username: username,
@@ -78,15 +82,30 @@ func (c *connectionService) TestConnection(host string, port int, username, pass
 }
 
 // ListConnection list all saved connection in local profile
-func (c *connectionService) ListConnection() (resp types.JSResp) {
+func (c *ConnectionService) ListConnection() (resp types.JSResp) {
 	resp.Success = true
 	resp.Data = c.conns.GetConnections()
 	return
 }
 
+// GetConnection get connection profile by name
+func (c *ConnectionService) GetConnection(name string) (resp types.JSResp) {
+	conn := c.conns.GetConnection(name)
+	resp.Success = conn != nil
+	resp.Data = conn
+	return
+}
+
 // SaveConnection save connection config to local profile
-func (c *connectionService) SaveConnection(param types.Connection, replace bool) (resp types.JSResp) {
-	if err := c.conns.UpsertConnection(param, replace); err != nil {
+func (c *ConnectionService) SaveConnection(name string, param types.Connection) (resp types.JSResp) {
+	var err error
+	if len(name) > 0 {
+		// update connection
+		err = c.conns.UpdateConnection(name, param)
+	} else {
+		err = c.conns.CreateConnection(param)
+	}
+	if err != nil {
 		resp.Msg = err.Error()
 	} else {
 		resp.Success = true
@@ -94,8 +113,19 @@ func (c *connectionService) SaveConnection(param types.Connection, replace bool)
 	return
 }
 
+// RemoveConnection remove connection by name
+func (c *ConnectionService) RemoveConnection(name string) (resp types.JSResp) {
+	err := c.conns.RemoveConnection(name)
+	if err != nil {
+		resp.Msg = err.Error()
+		return
+	}
+	resp.Success = true
+	return
+}
+
 // OpenConnection open redis server connection
-func (c *connectionService) OpenConnection(name string) (resp types.JSResp) {
+func (c *ConnectionService) OpenConnection(name string) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(name, 0)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -148,7 +178,7 @@ func (c *connectionService) OpenConnection(name string) (resp types.JSResp) {
 }
 
 // CloseConnection close redis server connection
-func (c *connectionService) CloseConnection(name string) (resp types.JSResp) {
+func (c *ConnectionService) CloseConnection(name string) (resp types.JSResp) {
 	item, ok := c.connMap[name]
 	if ok {
 		delete(c.connMap, name)
@@ -163,7 +193,7 @@ func (c *connectionService) CloseConnection(name string) (resp types.JSResp) {
 
 // get redis client from local cache or create a new open
 // if db >= 0, also switch to db index
-func (c *connectionService) getRedisClient(connName string, db int) (*redis.Client, context.Context, error) {
+func (c *ConnectionService) getRedisClient(connName string, db int) (*redis.Client, context.Context, error) {
 	item, ok := c.connMap[connName]
 	var rdb *redis.Client
 	var ctx context.Context
@@ -214,7 +244,7 @@ func (c *connectionService) getRedisClient(connName string, db int) (*redis.Clie
 
 // parse command response content which use "redis info"
 // # Keyspace\r\ndb0:keys=2,expires=1,avg_ttl=1877111749\r\ndb1:keys=33,expires=0,avg_ttl=0\r\ndb3:keys=17,expires=0,avg_ttl=0\r\ndb5:keys=3,expires=0,avg_ttl=0\r\n
-func (c *connectionService) parseInfo(info string) map[string]string {
+func (c *ConnectionService) parseInfo(info string) map[string]string {
 	parsedInfo := map[string]string{}
 	lines := strings.Split(info, "\r\n")
 	if len(lines) > 0 {
@@ -233,7 +263,7 @@ func (c *connectionService) parseInfo(info string) map[string]string {
 
 // parse db item value, content format like below
 // keys=2,expires=1,avg_ttl=1877111749
-func (c *connectionService) parseDBItemInfo(info string) map[string]int {
+func (c *ConnectionService) parseDBItemInfo(info string) map[string]int {
 	ret := map[string]int{}
 	items := strings.Split(info, ",")
 	for _, item := range items {
@@ -247,7 +277,7 @@ func (c *connectionService) parseDBItemInfo(info string) map[string]int {
 
 // OpenDatabase open select database, and list all keys
 // @param path contain connection name and db name
-func (c *connectionService) OpenDatabase(connName string, db int) (resp types.JSResp) {
+func (c *ConnectionService) OpenDatabase(connName string, db int) (resp types.JSResp) {
 	log.Println("open db:" + strconv.Itoa(db))
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
@@ -285,7 +315,7 @@ func (c *connectionService) OpenDatabase(connName string, db int) (resp types.JS
 }
 
 // GetKeyValue get value by key
-func (c *connectionService) GetKeyValue(connName string, db int, key string) (resp types.JSResp) {
+func (c *ConnectionService) GetKeyValue(connName string, db int, key string) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -391,7 +421,7 @@ func (c *connectionService) GetKeyValue(connName string, db int, key string) (re
 }
 
 // SetKeyValue set value by key
-func (c *connectionService) SetKeyValue(connName string, db int, key, keyType string, value any, ttl int64) (resp types.JSResp) {
+func (c *ConnectionService) SetKeyValue(connName string, db int, key, keyType string, value any, ttl int64) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -502,7 +532,7 @@ func (c *connectionService) SetKeyValue(connName string, db int, key, keyType st
 }
 
 // SetHashValue set hash field
-func (c *connectionService) SetHashValue(connName string, db int, key, field, newField, value string) (resp types.JSResp) {
+func (c *ConnectionService) SetHashValue(connName string, db int, key, field, newField, value string) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -547,7 +577,7 @@ func (c *connectionService) SetHashValue(connName string, db int, key, field, ne
 }
 
 // AddHashField add or update hash field
-func (c *connectionService) AddHashField(connName string, db int, key string, action int, fieldItems []any) (resp types.JSResp) {
+func (c *ConnectionService) AddHashField(connName string, db int, key string, action int, fieldItems []any) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -584,7 +614,7 @@ func (c *connectionService) AddHashField(connName string, db int, key string, ac
 }
 
 // AddListItem add item to list or remove from it
-func (c *connectionService) AddListItem(connName string, db int, key string, action int, items []any) (resp types.JSResp) {
+func (c *ConnectionService) AddListItem(connName string, db int, key string, action int, items []any) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -616,7 +646,7 @@ func (c *connectionService) AddListItem(connName string, db int, key string, act
 }
 
 // SetListItem update or remove list item by index
-func (c *connectionService) SetListItem(connName string, db int, key string, index int64, value string) (resp types.JSResp) {
+func (c *ConnectionService) SetListItem(connName string, db int, key string, index int64, value string) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -658,7 +688,7 @@ func (c *connectionService) SetListItem(connName string, db int, key string, ind
 }
 
 // SetSetItem add members to set or remove from set
-func (c *connectionService) SetSetItem(connName string, db int, key string, remove bool, members []any) (resp types.JSResp) {
+func (c *ConnectionService) SetSetItem(connName string, db int, key string, remove bool, members []any) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -680,7 +710,7 @@ func (c *connectionService) SetSetItem(connName string, db int, key string, remo
 }
 
 // UpdateSetItem replace member of set
-func (c *connectionService) UpdateSetItem(connName string, db int, key, value, newValue string) (resp types.JSResp) {
+func (c *ConnectionService) UpdateSetItem(connName string, db int, key, value, newValue string) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -699,7 +729,7 @@ func (c *connectionService) UpdateSetItem(connName string, db int, key, value, n
 }
 
 // UpdateZSetValue update value of sorted set member
-func (c *connectionService) UpdateZSetValue(connName string, db int, key, value, newValue string, score float64) (resp types.JSResp) {
+func (c *ConnectionService) UpdateZSetValue(connName string, db int, key, value, newValue string, score float64) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -749,7 +779,7 @@ func (c *connectionService) UpdateZSetValue(connName string, db int, key, value,
 }
 
 // AddZSetValue add item to sorted set
-func (c *connectionService) AddZSetValue(connName string, db int, key string, action int, valueScore map[string]float64) (resp types.JSResp) {
+func (c *ConnectionService) AddZSetValue(connName string, db int, key string, action int, valueScore map[string]float64) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -781,7 +811,7 @@ func (c *connectionService) AddZSetValue(connName string, db int, key string, ac
 }
 
 // SetKeyTTL set ttl of key
-func (c *connectionService) SetKeyTTL(connName string, db int, key string, ttl int64) (resp types.JSResp) {
+func (c *ConnectionService) SetKeyTTL(connName string, db int, key string, ttl int64) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -807,7 +837,7 @@ func (c *connectionService) SetKeyTTL(connName string, db int, key string, ttl i
 }
 
 // RemoveKey remove redis key
-func (c *connectionService) RemoveKey(connName string, db int, key string) (resp types.JSResp) {
+func (c *ConnectionService) RemoveKey(connName string, db int, key string) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -828,7 +858,7 @@ func (c *connectionService) RemoveKey(connName string, db int, key string) (resp
 }
 
 // RenameKey rename key
-func (c *connectionService) RenameKey(connName string, db int, key, newKey string) (resp types.JSResp) {
+func (c *ConnectionService) RenameKey(connName string, db int, key, newKey string) (resp types.JSResp) {
 	rdb, ctx, err := c.getRedisClient(connName, db)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -846,7 +876,7 @@ func (c *connectionService) RenameKey(connName string, db int, key, newKey strin
 }
 
 // update or insert key info to database
-//func (c *connectionService) updateDBKey(connName string, db int, keys []string, separator string) {
+//func (c *ConnectionService) updateDBKey(connName string, db int, keys []string, separator string) {
 //	dbStruct := map[string]any{}
 //	for _, key := range keys {
 //		keyPart := strings.Split(key, separator)

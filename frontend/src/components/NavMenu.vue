@@ -102,7 +102,7 @@ const onSelectPreferenceMenu = (key: MenuItemKey) => {
 
 // 打开 GitHub 页面
 const openGithub = () => {
-  BrowserOpenURL('https://github.com/tiny-craft/tiny-rdm')
+  BrowserOpenURL('https://github.com/andrewbytecoder/rdm')
 }
 </script>
 

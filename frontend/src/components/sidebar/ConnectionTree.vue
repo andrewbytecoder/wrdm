@@ -2,7 +2,7 @@
 import useDialogStore from '../../stores/dialog'
 import { h, nextTick, onMounted, reactive, ref } from 'vue'
 import useConnectionStore,  { DatabaseItem } from '../../stores/connections'
-import { NIcon, useMessage, TreeOption } from 'naive-ui'
+import { NIcon, useDialog, useMessage, TreeOption } from 'naive-ui'
 import { ConnectionType } from '../../consts/connection_type'
 import ToggleFolder from '../icons/ToggleFolder.vue'
 import ToggleServer from '../icons/ToggleServer.vue'
@@ -32,7 +32,7 @@ interface ExtendedTreeOption extends TreeOption {
   redisKey?: string
 }
 
-const { t } = useI18n()
+const i18n = useI18n()
 const loadingConnection = ref(false)
 const openingConnection = ref(false)
 const connectionStore = useConnectionStore()
@@ -47,7 +47,7 @@ onMounted(async () => {
   try {
     loadingConnection.value = true
     await nextTick()
-    await connectionStore.initConnections()
+    await connectionStore.initConnections(false)
   } finally {
     loadingConnection.value = false
   }
@@ -73,12 +73,12 @@ const menuOptions: Record<number, Function> = {
   [ConnectionType.Group]: () => [
     {
       key: 'group_reload',
-      label: t('edit_conn_group'),
+      label: i18n.t('edit_conn_group'),
       icon: renderIcon(Config),
     },
     {
       key: 'group_delete',
-      label: t('remove_conn_group'),
+      label: i18n.t('remove_conn_group'),
       icon: renderIcon(Delete),
     },
   ],
@@ -88,17 +88,17 @@ const menuOptions: Record<number, Function> = {
       return [
         {
           key: 'server_close',
-          label: t('disconnect'),
+          label: i18n.t('disconnect'),
           icon: renderIcon(Unlink),
         },
         {
           key: 'server_dup',
-          label: t('dup_conn'),
+          label: i18n.t('dup_conn'),
           icon: renderIcon(CopyLink),
         },
         {
           key: 'server_config',
-          label: t('edit_conn'),
+          label: i18n.t('edit_conn'),
           icon: renderIcon(Config),
         },
         {
@@ -107,7 +107,7 @@ const menuOptions: Record<number, Function> = {
         },
         {
           key: 'server_remove',
-          label: t('remove_conn'),
+          label: i18n.t('remove_conn'),
           icon: renderIcon(Delete),
         },
       ]
@@ -115,12 +115,12 @@ const menuOptions: Record<number, Function> = {
       return [
         {
           key: 'server_open',
-          label: t('open_connection'),
+          label: i18n.t('open_connection'),
           icon: renderIcon(Connect),
         },
         {
           key: 'server_edit',
-          label: t('edit_conn'),
+          label: i18n.t('edit_conn'),
           icon: renderIcon(Edit),
         },
         {
@@ -128,8 +128,8 @@ const menuOptions: Record<number, Function> = {
           key: 'd1',
         },
         {
-          key: 'server_delete',
-          label: t('remove_conn'),
+          key: 'server_remove',
+          label: i18n.t('remove_conn'),
           icon: renderIcon(Delete),
         },
       ]
@@ -208,6 +208,30 @@ const openConnection = async (name: string) => {
   }
 }
 
+
+const dialog = useDialog()
+const removeConnection = async (name: string) => {
+  dialog.warning({
+    title: i18n.t('warning'),
+    content: i18n.t('delete_key_tip', { key: name }),
+    closable: false,
+    autoFocus: false,
+    transformOrigin: 'center',
+    positiveText: i18n.t('confirm'),
+    negativeText: i18n.t('cancel'),
+    onPositiveClick: async () => {
+      connectionStore.removeConnection(name).then(({ success, msg }) => {
+        if (!success) {
+          message.error(msg)
+        } else {
+          message.success(i18n.t('delete_key_succ', { key: name }))
+        }
+      })
+    },
+  })
+}
+
+
 const nodeProps = ({ option }: { option: ExtendedTreeOption }) => {
   return {
     onDblclick: async () => {
@@ -244,6 +268,12 @@ const handleSelectContextMenu = (key: string) => {
   switch (key) {
     case 'server_open':
       openConnection(name!).then(() => {})
+      break
+    case 'server_edit':
+      dialogStore.openEditDialog(name as string)
+      break
+    case 'server_remove':
+      removeConnection(name as string)
       break
     case 'server_close':
       connectionStore.closeConnection(name as string)

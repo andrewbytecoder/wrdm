@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import useConnectionStore from './connections.js'
+import {types} from "../../wailsjs/go/models";
 
 interface NewKeyParam {
     prefix: string
@@ -21,7 +23,8 @@ interface RenameKeyParam {
 
 const useDialogStore = defineStore('dialog', {
     state: () => ({
-        newDialogVisible: false,
+        connDialogVisible: false,
+        connParam: new types.Connection(),
 
         newKeyParam: {
             prefix: '',
@@ -56,10 +59,22 @@ const useDialogStore = defineStore('dialog', {
 
     actions: {
         openNewDialog() {
-            this.newDialogVisible = true
+            this.connDialogVisible = true
+            this.connParam = new types.Connection
         },
         closeNewDialog() {
-            this.newDialogVisible = false
+            this.connDialogVisible = false
+        },
+
+        async openEditDialog(name: string) {
+            console.log('open edit dialog:' + name)
+            const connStore = useConnectionStore()
+            const profile = await connStore.getConnectionProfile(name)
+            this.connParam = profile  || connStore.newDefaultConnection(name)
+            this.connDialogVisible = true
+        },
+        closeEditDialog() {
+            this.connDialogVisible = false
         },
 
         openRenameKeyDialog(server: string, db: number, key: string) {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"rdm/backend/services"
 )
 
 // App struct
@@ -19,6 +20,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	services.Connection().Start(ctx)
 }
 
 // Greet returns a greeting for the given name

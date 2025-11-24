@@ -1,16 +1,19 @@
 import { defineStore } from 'pinia'
-import { get, isEmpty, last, remove, size, sortedIndexBy, split } from 'lodash'
+import { get, isEmpty, last, remove, size, sortedIndexBy, split, uniq } from 'lodash'
 import {
     AddHashField,
     AddListItem,
     AddZSetValue,
     CloseConnection,
+    GetConnection,
     GetKeyValue,
     ListConnection,
     OpenConnection,
     OpenDatabase,
     RemoveKey,
+    RemoveConnection,
     RenameKey,
+    SaveConnection,
     SetHashValue,
     SetKeyTTL,
     SetKeyValue,
@@ -21,6 +24,7 @@ import {
 } from '../../wailsjs/go/services/connectionService.js'
 import { ConnectionType } from '../consts/connection_type.js'
 import useTabStore from './tab.js'
+import {types} from "../../wailsjs/go/models";
 
 const separator = ':'
 
@@ -134,6 +138,7 @@ interface UpdateZSetValueResponse {
 }
 
 interface ConnectionState {
+    groups: string[], // all group name
     connections: ConnectionItem[]
     databases: Record<string, DatabaseItem[]>
 }
@@ -148,6 +153,7 @@ interface SelectParams {
 
 const useConnectionStore = defineStore('connections', {
     state: (): ConnectionState => ({
+        groups: [], // all group name
         connections: [], // all connections
         databases: {}, // all databases in opened connections group by name
     }),
@@ -158,14 +164,16 @@ const useConnectionStore = defineStore('connections', {
     },
     actions: {
         /**
-         * Load all store connections struct from local profile
-         * @returns {Promise<void>}
-         */
-        async initConnections(): Promise<void> {
-            if (!isEmpty(this.connections)) {
+         * * load all store connections struct from local profile
+         *          * @param {boolean} [force]
+         *          * @returns {Promise<void>}
+         *          */
+        async initConnections(force: boolean): Promise<void> {
+            if (!force && !isEmpty(this.connections)) {
                 return
             }
             const conns: ConnectionItem[] = []
+            const groups: string[] = []
             const { data = [{ groupName: '', connections: [] }] } = await ListConnection() as ListConnectionResponse
             for (let i = 0; i < data.length; i++) {
                 const group = data[i]
@@ -183,6 +191,7 @@ const useConnectionStore = defineStore('connections', {
                         })
                     }
                 } else {
+                    groups.push(group.groupName)
                     // Custom group
                     const children: ConnectionItem[] = []
                     const len = size(group.connections)
@@ -194,7 +203,6 @@ const useConnectionStore = defineStore('connections', {
                             label: item.name,
                             name: item.name,
                             type: ConnectionType.Server,
-                            children: j === len - 1 ? undefined : [],
                             // isLeaf: false,
                         })
                     }
@@ -209,8 +217,45 @@ const useConnectionStore = defineStore('connections', {
             }
             this.connections = conns
             console.debug(JSON.stringify(this.connections))
+            this.groups = uniq(groups)
         },
 
+        /**
+         * get connection by name from local profile
+         * @param name
+         * @returns {Promise<{}|null>}
+         */
+        async getConnectionProfile(name:string):Promise<types.Connection> {
+            try {
+                const { data, success } = await GetConnection(name)
+                if (success) {
+                    return data
+                }
+            } finally {
+            }
+            return  this.newDefaultConnection(name)
+        },
+
+        /**
+         * create a new default connection
+         * @param {string} [name]
+         * @returns {{types.Connection}}
+         */
+        newDefaultConnection(name:string):types.Connection {
+            return {
+                group: '',
+                name: name || '',
+                addr: '127.0.0.1',
+                port: 6379,
+                username: '',
+                password: '',
+                defaultFilter: '*',
+                keySeparator: ':',
+                connTimeout: 60,
+                execTimeout: 60,
+                markColor: ''
+            }
+        },
         /**
          * get database server by name
          * @param name
@@ -231,6 +276,23 @@ const useConnectionStore = defineStore('connections', {
                 }
             }
             return null
+        },
+
+        /**
+         * Create a new connection or update current connection profile
+         * @param {string} name set null if create a new connection
+         * @param {types.Connection} param
+         * @returns {Promise<{success: boolean, [msg]: string}>}
+         */
+        async saveConnection(name:string, param:types.Connection):Promise<types.JSResp> {
+            const { success, msg } = await SaveConnection(name, param)
+            if (!success) {
+                return { success: false, msg }
+            }
+
+            // reload connection list
+            await this.initConnections(true)
+            return {data: undefined, msg: "save connection success", success: true }
         },
 
         /**
@@ -284,7 +346,7 @@ const useConnectionStore = defineStore('connections', {
         /**
          * Close connection
          * @param {string} name
-         * @returns {Promise<boolean>}
+         * @returns {Promise<boolean>}  内部是异步调用，，所以返回值是异步的，所有Promise的值都需要使用 await 获取返回值
          */
         async closeConnection(name: string): Promise<boolean> {
             const { success, msg } = await CloseConnection(name)
@@ -297,6 +359,22 @@ const useConnectionStore = defineStore('connections', {
             const tabStore = useTabStore()
             tabStore.removeTabByName(name)
             return true
+        },
+
+        /**
+         * Remove connection
+         * @param name
+         * @returns {Promise<{success: boolean, [msg]: string}>}
+         */
+        async removeConnection(name: string):Promise<types.JSResp> {
+            // close connection first
+            await this.closeConnection(name)
+            const { success, msg } = await RemoveConnection(name)
+            if (!success) {
+                return { success: false, msg }
+            }
+            await this.initConnections(true)
+            return {data: undefined, msg: "", success: true }
         },
 
         /**
