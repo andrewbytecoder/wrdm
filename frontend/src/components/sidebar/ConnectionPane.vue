@@ -7,9 +7,13 @@ import Sort from '../icons/Sort.vue'
 import ConnectionTree from './ConnectionTree.vue'
 import IconButton from '../common/IconButton.vue'
 import Filter from '../icons/Filter.vue'
+import Unlink from '../icons/Unlink.vue'
+import useConnectionStore from '../../stores/connections.js'
 
 
 const dialogStore = useDialogStore()
+const connectionStore = useConnectionStore()
+
 
 const onSort = () => {
   dialogStore.openPreferencesDialog()
@@ -38,6 +42,15 @@ const onSort = () => {
           size="20"
           stroke-width="4"
           tTooltip="new_group"
+          @click="dialogStore.openNewKeyDialog('aa:bb')"
+      />
+      <icon-button
+          :disabled="!connectionStore.anyConnectionOpened"
+          :icon="Unlink"
+          color="#555"
+          size="20"
+          stroke-width="4"
+          t-tooltip="disconnect_all"
           @click="dialogStore.openNewKeyDialog('aa:bb')"
       />
       <n-divider style="margin: 0 4px; --n-color: #aaa; width: 2px" vertical />

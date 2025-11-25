@@ -97,7 +97,7 @@ const menuOptions: Record<number, Function> = {
           icon: renderIcon(CopyLink),
         },
         {
-          key: 'server_config',
+          key: 'server_edit',
           label: i18n.t('edit_conn'),
           icon: renderIcon(Config),
         },
@@ -213,7 +213,7 @@ const dialog = useDialog()
 const removeConnection = async (name: string) => {
   dialog.warning({
     title: i18n.t('warning'),
-    content: i18n.t('delete_key_tip', { key: name }),
+    content: i18n.t('delete_key_tip', { conn: name }),
     closable: false,
     autoFocus: false,
     transformOrigin: 'center',
@@ -223,8 +223,6 @@ const removeConnection = async (name: string) => {
       connectionStore.removeConnection(name).then(({ success, msg }) => {
         if (!success) {
           message.error(msg)
-        } else {
-          message.success(i18n.t('delete_key_succ', { key: name }))
         }
       })
     },
