@@ -81,7 +81,7 @@ const useTabStore = defineStore('tab', {
                 title: 'new tab',
                 blank: true,
             })
-            this.activatedIndex = size(this.tabList) - 1
+            this._setActivatedIndex(size(this.tabList) - 1,false)
         },
 
         /**
@@ -110,12 +110,13 @@ const useTabStore = defineStore('tab', {
             value?: any
         }): void {
             let tabIndex = findIndex(this.tabList, { name: server })
+            //  找不到新增
             if (tabIndex === -1) {
                 this.tabList.push({
                     name: server,
                     server,
                     db,
-                    blank: true,
+                    blank: false,
                     type,
                     ttl,
                     key,
@@ -123,16 +124,16 @@ const useTabStore = defineStore('tab', {
                 })
                 tabIndex = this.tabList.length - 1
             }
-            const tab = this.tabList[tabIndex]
-            tab.blank = false
-            tab.title = `${server}/db${db}`
-            tab.server = server
-            tab.db = db
-            tab.type = type
-            tab.ttl = ttl
-            tab.key = key
-            tab.value = value
-            this.activatedIndex = tabIndex
+            //  找到了修改原先的值
+            this.tabList[tabIndex].blank = false
+            this.tabList[tabIndex].title = `${server}/db${db}`
+            this.tabList[tabIndex].server = server
+            this.tabList[tabIndex].db = db
+            this.tabList[tabIndex].type = type
+            this.tabList[tabIndex].ttl = ttl
+            this.tabList[tabIndex].key = key
+            this.tabList[tabIndex].value = value
+            this._setActivatedIndex(tabIndex, true)
         },
 
         updateTTL({ server, db, key, ttl }: {
@@ -157,12 +158,12 @@ const useTabStore = defineStore('tab', {
         },
 
         switchTab(tabIndex: number): void {
-            const len = size(this.tabList)
-            if (tabIndex < 0 || tabIndex >= len) {
-                return
-            }
-            // 使用内部方法以统一 nav 的设置
-            this._setActivatedIndex(tabIndex, true)
+            // const len = size(this.tabList)
+            // if (tabIndex < 0 || tabIndex >= len) {
+            //     return
+            // }
+            // // 使用内部方法以统一 nav 的设置
+            // this._setActivatedIndex(tabIndex, true)
         },
 
         removeTab(tabIndex: number): null | TabItem {
@@ -176,28 +177,20 @@ const useTabStore = defineStore('tab', {
             }
 
             const removed = this.tabList.splice(tabIndex, 1)
-            const removedItem = size(removed) > 0 ? removed[0] : null
 
-            if (this.tabList.length === 0) {
-                // 如果已无 tab，创建一个空白 tab
-                this.newBlankTab()
-                this.activatedIndex = 0
+            // update select index if removed index equal current selected
+            this.activatedIndex -= 1
+            if (this.activatedIndex < 0) {
+                if (this.tabList.length > 0) {
+                    this._setActivatedIndex(0, false)
+                } else {
+                    this._setActivatedIndex(-1, false)
+                }
             } else {
-                // 根据删除位置调整 activatedIndex
-                if (tabIndex < this.activatedIndex) {
-                    // 删除在当前激活项左侧，索引左移一位
-                    this.activatedIndex -= 1
-                } else if (tabIndex === this.activatedIndex) {
-                    // 删除的是当前激活项，选择删除后右侧的项（如果存在），否则选择最后一项
-                    const newIndex = Math.min(tabIndex, this.tabList.length - 1)
-                    this.activatedIndex = newIndex
-                }
-                // 如果删除在激活项右侧，不需要调整 activatedIndex
-                if (this.activatedIndex < 0 && this.tabList.length > 0) {
-                    this.activatedIndex = 0
-                }
+                this._setActivatedIndex(this.activatedIndex, false)
             }
-            return removedItem
+
+            return size(removed) > 0 ? removed[0] : null
         },
 
         removeTabByName(tabName: string): void {

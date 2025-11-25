@@ -157,18 +157,19 @@ func (c *ConnectionService) RemoveConnection(name string) (resp types.JSResp) {
 }
 
 // OpenConnection open redis server connection
-func (c *ConnectionService) OpenConnection(name string) (resp types.JSResp) {
+func (c *ConnectionService) OpenConnection(name string) ([]types.ConnectionDB, error) {
 	rdb, ctx, err := c.getRedisClient(name, 0)
 	if err != nil {
-		resp.Msg = err.Error()
-		return
+		runtime.LogDebug(c.ctx, "get redis client fail:"+err.Error())
+		log.Println("get redis client fail:", err)
+		return nil, err
 	}
 
 	// get total database
 	config, err := rdb.ConfigGet(ctx, "databases").Result()
 	if err != nil {
-		resp.Msg = err.Error()
-		return
+		runtime.LogDebug(c.ctx, "get redis info fail:"+err.Error())
+		return nil, err
 	}
 	totaldb, err := strconv.Atoi(config["database"])
 	if err != nil {
@@ -178,8 +179,8 @@ func (c *ConnectionService) OpenConnection(name string) (resp types.JSResp) {
 	// get database info
 	res, err := rdb.Info(ctx, "keyspace").Result()
 	if err != nil {
-		resp.Msg = "list database fail:" + err.Error()
-		return
+		runtime.LogDebug(c.ctx, "get redis info fail:"+err.Error())
+		return nil, err
 	}
 	// Parse all db, response content like below
 	var dbs []types.ConnectionDB
@@ -202,15 +203,11 @@ func (c *ConnectionService) OpenConnection(name string) (resp types.JSResp) {
 		}
 	}
 
-	resp.Success = true
-	resp.Data = map[string]any{
-		"db": dbs,
-	}
-	return
+	return dbs, nil
 }
 
 // CloseConnection close redis server connection
-func (c *ConnectionService) CloseConnection(name string) (resp types.JSResp) {
+func (c *ConnectionService) CloseConnection(name string) bool {
 	item, ok := c.connMap[name]
 	if ok {
 		delete(c.connMap, name)
@@ -219,8 +216,7 @@ func (c *ConnectionService) CloseConnection(name string) (resp types.JSResp) {
 			item.rdb.Close()
 		}
 	}
-	resp.Success = true
-	return
+	return true
 }
 
 // get redis client from local cache or create a new open

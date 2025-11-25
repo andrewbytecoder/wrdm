@@ -70,14 +70,6 @@ interface ListConnectionResponse {
     data?: ConnectionGroup[]
 }
 
-interface OpenConnectionResponse {
-    data?: {
-        db: Array<{name: string, keys: number}>
-    }
-    success: boolean
-    msg: string
-}
-
 interface OpenDatabaseResponse {
     data?: {
         keys: string[]
@@ -320,26 +312,22 @@ const useConnectionStore = defineStore('connections', {
                 return
             }
 
-            const { data, success, msg } = await OpenConnection(name) as OpenConnectionResponse
-            if (!success) {
-                throw new Error(msg)
+            const cdbs = await OpenConnection(name)
+            if (cdbs == null || cdbs.length === 0) {
+                throw new Error('no db loaded')
             }
             // append to db node to current connection
             // const connNode = this.getConnection(name)
             // if (connNode == null) {
             //     throw new Error('no such connection')
             // }
-            const { db } = data!
-            if (isEmpty(db)) {
-                throw new Error('no db loaded')
-            }
             const dbs: DatabaseItem[] = []
-            for (let i = 0; i < db.length; i++) {
+            for (let i = 0; i < cdbs.length; i++) {
                 dbs.push({
-                    key: `${name}/${db[i].name}`,
-                    label: db[i].name,
+                    key: `${name}/${cdbs[i].name}`,
+                    label: cdbs[i].name,
                     name: name,
-                    keys: db[i].keys,
+                    keys: cdbs[i].keys,
                     db: i,
                     type: ConnectionType.RedisDB,
                     isLeaf: false,
@@ -354,7 +342,7 @@ const useConnectionStore = defineStore('connections', {
          * @returns {Promise<boolean>}  内部是异步调用，，所以返回值是异步的，所有Promise的值都需要使用 await 获取返回值
          */
         async closeConnection(name: string): Promise<boolean> {
-            const { success, msg } = await CloseConnection(name)
+            const success = await CloseConnection(name)
             if (!success) {
                 // throw new Error(msg)
                 return false

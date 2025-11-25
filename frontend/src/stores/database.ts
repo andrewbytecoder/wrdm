@@ -217,7 +217,7 @@ const useDatabaseStore = defineStore('database', {
          * @param {string} connName
          */
         async closeConnection(connName: string): Promise<boolean> {
-            const { success, msg } = await CloseConnection(connName)
+            const success = await CloseConnection(connName)
             if (!success) {
                 // throw new Error(msg)
                 return false
