@@ -15,7 +15,7 @@ type LocalStorage struct {
 
 func NewLocalStorage(filename string) *LocalStorage {
 	return &LocalStorage{
-		ConfPath: path.Join(userdir.GetConfigHome(), "TinyRDM", filename),
+		ConfPath: path.Join(userdir.GetConfigHome(), "WRDM", filename),
 	}
 }
 

@@ -31,6 +31,8 @@ interface TestConnectionResponse {
 }
 
 const generalFormValue: types.Connection = {
+  convertValues(a: any, classs: any, asMap?: boolean): any {
+  },
   group: '',
   name: '',
   addr: '127.0.0.1',
@@ -41,7 +43,7 @@ const generalFormValue: types.Connection = {
   keySeparator: ':',
   connTimeout: 60,
   execTimeout: 60,
-  markColor: '',
+  markColor: ''
 }
 
 /**
@@ -154,7 +156,7 @@ const onTestConnection = async () => {
   let result = ''
   try {
     const { addr, port, username, password } = generalForm.value
-    const { success = false, msg } = await TestConnection(addr, port, username, password) as unknown as TestConnectionResponse
+    const { success = false, msg } = await TestConnection(addr as string, port as number, username as string, password as string) 
     if (!success) {
       result = msg
     }

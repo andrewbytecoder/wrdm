@@ -2,7 +2,7 @@
 import useDialogStore from '../../stores/dialog'
 import { h, nextTick, onMounted, reactive, ref } from 'vue'
 import useConnectionStore,  { DatabaseItem } from '../../stores/connections'
-import { NIcon, useDialog, useMessage, TreeOption } from 'naive-ui'
+import { NIcon, useDialog, useMessage, TreeSelectOption  } from 'naive-ui'
 import { ConnectionType } from '../../consts/connection_type'
 import ToggleFolder from '../icons/ToggleFolder.vue'
 import ToggleServer from '../icons/ToggleServer.vue'
@@ -15,20 +15,20 @@ import Connect from '../icons/Connect.vue'
 import { useI18n } from 'vue-i18n'
 import useTabStore from '../../stores/tab'
 import Edit from '../icons/Edit.vue'
+import { useConfirmDialog } from '../../utils/confirm_dialog.js'
 
 interface ContextMenuParam {
   show: boolean
   x: number
   y: number
   options: any[] | null
-  currentNode: TreeOption | null
+  currentNode: TreeSelectOption  | null
 }
 
-interface ExtendedTreeOption extends TreeOption {
+interface ExtendedTreeOption extends TreeSelectOption  {
   type: number
   name?: string
   db?: number
-  key?: string
   redisKey?: string
 }
 
@@ -72,9 +72,9 @@ const renderIcon = (icon: any) => {
 const menuOptions: Record<number, Function> = {
   [ConnectionType.Group]: () => [
     {
-      key: 'group_reload',
-      label: i18n.t('edit_conn_group'),
-      icon: renderIcon(Config),
+      key: 'group_rename',
+      label: i18n.t('rename_conn_group'),
+      icon: renderIcon(Edit),
     },
     {
       key: 'group_delete',
@@ -137,7 +137,7 @@ const menuOptions: Record<number, Function> = {
   },
 }
 
-const renderLabel = ({ option }: { option: TreeOption }) => {
+const renderLabel = ({ option }: { option: TreeSelectOption }) => {
   // switch (option.type) {
   //     case ConnectionType.Server:
   //         return h(ConnectionTreeItem, { title: option.label })
@@ -178,11 +178,11 @@ const renderPrefix = ({ option }: { option: ExtendedTreeOption }) => {
 //   expandedKeys.value = value
 // }
 
-const onUpdateExpandedKeys = (keys: string[], option: TreeOption, meta: { node: TreeOption; action: 'expand' | 'collapse' }) => {
+const onUpdateExpandedKeys = (keys: string[], option: TreeSelectOption, meta: { node: TreeSelectOption; action: 'expand' | 'collapse' }) => {
   expandedKeys.value = keys
 }
 
-const onUpdateSelectedKeys = (keys: string[], option: TreeOption, meta: { node: TreeOption; action: 'expand' | 'collapse' }) => {
+const onUpdateSelectedKeys = (keys: string[], option: TreeSelectOption, meta: { node: TreeSelectOption; action: 'expand' | 'collapse' }) => {
   selectedKeys.value = keys
 }
 
@@ -210,25 +210,26 @@ const openConnection = async (name: string) => {
 
 
 const dialog = useDialog()
+const confirmDialog = useConfirmDialog()
 const removeConnection = async (name: string) => {
-  dialog.warning({
-    title: i18n.t('warning'),
-    content: i18n.t('delete_key_tip', { conn: name }),
-    closable: false,
-    autoFocus: false,
-    transformOrigin: 'center',
-    positiveText: i18n.t('confirm'),
-    negativeText: i18n.t('cancel'),
-    onPositiveClick: async () => {
-      connectionStore.removeConnection(name).then(({ success, msg }) => {
-        if (!success) {
-          message.error(msg)
-        }
-      })
-    },
+  confirmDialog.warning(i18n.t('remove_tip', { type: i18n.t('conn_name'), name }), async () => {
+    connectionStore.removeConnection(name).then(({ success, msg }) => {
+      if (!success) {
+        message.error(msg)
+      }
+    })
   })
 }
 
+const removeGroup = async (name: string) => {
+  confirmDialog.warning(i18n.t('remove_tip', { type: i18n.t('conn_group'), name }), async () => {
+    connectionStore.deleteGroup(name, false).then(({ success, msg }) => {
+      if (!success) {
+        message.error(msg)
+      }
+    })
+  })
+}
 
 const nodeProps = ({ option }: { option: ExtendedTreeOption }) => {
   return {
@@ -256,13 +257,13 @@ const nodeProps = ({ option }: { option: ExtendedTreeOption }) => {
   }
 }
 
-const renderContextLabel = (option: TreeOption) => {
+const renderContextLabel = (option: TreeSelectOption) => {
   return h('div', { class: 'context-menu-item' }, option.label)
 }
 
 const handleSelectContextMenu = (key: string) => {
   contextMenuParam.show = false
-  const { name, db, key: nodeKey, redisKey } = contextMenuParam.currentNode as ExtendedTreeOption
+  const { name, label, db, key: nodeKey, redisKey } = contextMenuParam.currentNode as ExtendedTreeOption
   switch (key) {
     case 'server_open':
       openConnection(name!).then(() => {})
@@ -275,6 +276,12 @@ const handleSelectContextMenu = (key: string) => {
       break
     case 'server_close':
       connectionStore.closeConnection(name as string)
+      break
+    case 'group_rename':
+      dialogStore.openRenameGroupDialog(label as string)
+      break
+    case 'group_delete':
+      removeGroup(label as string)
       break
   }
   console.warn('TODO: handle context menu:' + key)

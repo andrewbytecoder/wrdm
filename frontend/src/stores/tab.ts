@@ -209,7 +209,7 @@ const useTabStore = defineStore('tab', {
 
         removeAllTab(): void {
             this.tabList = []
-            this.newBlankTab()
+            this._setActivatedIndex(-1, false)
         },
     },
 })

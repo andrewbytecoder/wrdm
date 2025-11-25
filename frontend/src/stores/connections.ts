@@ -27,24 +27,23 @@ import {
 } from '../../wailsjs/go/services/connectionService.js'
 import { ConnectionType } from '../consts/connection_type.js'
 import useTabStore from './tab.js'
+import {TreeOption} from 'naive-ui'
 import {types} from "../../wailsjs/go/models";
 
 const separator = ':'
 
 // 定义类型
-export interface ConnectionItem {
+export interface ConnectionItem extends types.Connection  {
     key: string
     label: string
-    name: string
-    type: number
     db?: number
     keys?: number
     connected?: boolean
     opened?: boolean
     expanded?: boolean
-    children?: ConnectionItem[]
     isLeaf?: boolean
     redisKey?: string
+    children?: ConnectionItem[]
 }
 
 // 数据库 每个redis 默认 16个数据库
@@ -143,7 +142,7 @@ interface UpdateZSetValueResponse {
 
 interface ConnectionState {
     groups: string[], // all group name
-    connections: types.ConnectionConfig[]
+    connections: ConnectionItem[]
     databases: Record<string, DatabaseItem[]>
 }
 
@@ -178,33 +177,44 @@ const useConnectionStore = defineStore('connections', {
             }
             const conns: ConnectionItem[] = []
             const groups: string[] = []
-            const  data = await ListConnection() as ListConnectionResponse
+            const  data = await ListConnection()
             for (const conn of data) {
                 // Top level group
-                if (conn.type === 'group') {
-
+                if (conn.type !== 'group') {
+                    conns.push({
+                        name: conn.name,
+                        key: conn.name, group: "",
+                        convertValues(a: any, classs: any, asMap?: boolean): any {
+                        },
+                        label: conn.name,
+                        type: ConnectionType[ConnectionType.Server]
+                    })
                 } else {
-                    groups.push(group.groupName)
+                    groups.push(conn.name)
                     // Custom group
                     const children: ConnectionItem[] = []
-                    const len = size(group.connections)
-                    for (let j = 0; j < len; j++) {
-                        const item = group.connections[j]
-                        const value = group.groupName + '/' + item.name
+                    for (const item of conn.connections!) {
+                        const value:string = conn.name + '/' + item.name
+
                         children.push({
+                            group: "",
+                            convertValues(a: any, classs: any, asMap?: boolean): any {
+                            },
+                            name: item.name,
                             key: value,
                             label: item.name,
-                            name: item.name,
-                            type: ConnectionType.Server,
-                            // isLeaf: false,
+                            type: ConnectionType[ConnectionType.Server]
                         })
                     }
                     conns.push({
-                        name: group.groupName,
-                        key: group.groupName,
-                        label: group.groupName,
-                        type: ConnectionType.Group,
-                        children: children,
+                        group: "",
+                        name: "",
+                        convertValues(a: any, classs: any, asMap?: boolean): any {
+                        },
+                        key: conn.name,
+                        label: conn.name,
+                        type: ConnectionType[ConnectionType.Group],
+                        children: children
                     })
                 }
             }
@@ -236,6 +246,8 @@ const useConnectionStore = defineStore('connections', {
          */
         newDefaultConnection(name:string):types.Connection {
             return {
+                convertValues(a: any, classs: any, asMap?: boolean): any {
+                },
                 group: '',
                 name: name || '',
                 addr: '127.0.0.1',
@@ -257,12 +269,12 @@ const useConnectionStore = defineStore('connections', {
         getConnection(name: string): ConnectionItem | null {
             const conns = this.connections
             for (let i = 0; i < conns.length; i++) {
-                if (conns[i].type === ConnectionType.Server && conns[i].key === name) {
+                if (conns[i].type === ConnectionType[ConnectionType.Server] && conns[i].key === name) {
                     return conns[i]
-                } else if (conns[i].type === ConnectionType.Group) {
+                } else if (conns[i].type === ConnectionType[ConnectionType.Group]) {
                     const children = conns[i].children || []
                     for (let j = 0; j < children.length; j++) {
-                        if (children[j].type === ConnectionType.Server && conns[i].key === name) {
+                        if (children[j].type === ConnectionType[ConnectionType.Server] && conns[i].key === name) {
                             return children[j]
                         }
                     }
@@ -355,6 +367,20 @@ const useConnectionStore = defineStore('connections', {
         },
 
         /**
+         * Close all connection
+         * @returns {Promise<void>}
+         */
+        async closeAllConnection() {
+            for (const name in this.databases) {
+                await CloseConnection(name)
+            }
+
+            this.databases = {}
+            const tabStore = useTabStore()
+            tabStore.removeAllTab()
+        },
+
+        /**
          * Remove connection
          * @param name
          * @returns {Promise<{success: boolean, [msg]: string}>}
@@ -368,6 +394,53 @@ const useConnectionStore = defineStore('connections', {
             }
             await this.initConnections(true)
             return {data: undefined, msg: "", success: true }
+        },
+
+        /**
+         * Create connection group
+         * @param name
+         * @returns {Promise<{success: boolean, [msg]: string}>}
+         */
+        async createGroup(name: string): Promise<{success: boolean, msg: string}> {
+            const { success, msg } = await CreateGroup(name)
+            if (!success) {
+                return { success: false, msg }
+            }
+            await this.initConnections(true)
+            return { success: true, msg: "" }
+        },
+
+        /**
+         * Rename connection group
+         * @param name
+         * @param newName
+         * @returns {Promise<{success: boolean, [msg]: string}>}
+         */
+        async renameGroup(name: string, newName: string) :Promise<{success: boolean, msg: string}> {
+            if (name === newName) {
+                return { success: true, msg: "" }
+            }
+            const { success, msg } = await RenameGroup(name, newName)
+            if (!success) {
+                return { success: false, msg }
+            }
+            await this.initConnections(true)
+            return { success: true, msg: "" }
+        },
+
+        /**
+         * Remove group by name
+         * @param {string} name
+         * @param {boolean} [includeConn]
+         * @returns {Promise<{success: boolean, [msg]: string}>}
+         */
+        async deleteGroup(name:string, includeConn:boolean):Promise<{success: boolean, msg: string}> {
+            const { success, msg } = await RemoveGroup(name, includeConn)
+            if (!success) {
+                return { success: false, msg }
+            }
+            await this.initConnections(true)
+            return { success: true, msg: "" }
         },
 
         /**

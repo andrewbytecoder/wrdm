@@ -18,6 +18,11 @@ const connectionStore = useConnectionStore()
 const onSort = () => {
   dialogStore.openPreferencesDialog()
 }
+
+const onDisconnectAll = () => {
+  connectionStore.closeAllConnection()
+}
+
 </script>
 
 <template>
@@ -27,6 +32,7 @@ const onSort = () => {
     <!-- bottom function bar -->
     <!--      @click 是注册 子组件点击事件相应情况 -->
     <!--      子组件后面跟的所有东西都是透传给子组件的参数-->
+<!--    这里的 tTooltip 会自动转化为 i18n 依赖 IconButton 进行实现-->
     <div class="nav-pane-bottom flex-box-h">
       <IconButton
           :icon="AddLink"
@@ -42,7 +48,7 @@ const onSort = () => {
           size="20"
           stroke-width="4"
           tTooltip="new_group"
-          @click="dialogStore.openNewKeyDialog('aa:bb')"
+          @click="dialogStore.openNewGroupDialog()"
       />
       <icon-button
           :disabled="!connectionStore.anyConnectionOpened"
@@ -51,7 +57,7 @@ const onSort = () => {
           size="20"
           stroke-width="4"
           t-tooltip="disconnect_all"
-          @click="dialogStore.openNewKeyDialog('aa:bb')"
+          @click="onDisconnectAll"
       />
       <n-divider style="margin: 0 4px; --n-color: #aaa; width: 2px" vertical />
       <IconButton :icon="Sort" color="#555" size="20" stroke-width="4" t-tooltip="sort_conn" @click="onSort" />

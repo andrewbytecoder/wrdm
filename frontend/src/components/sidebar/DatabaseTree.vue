@@ -4,7 +4,7 @@ import { ConnectionType } from '../../consts/connection_type'
 import { NIcon, useDialog, useMessage, TreeOption } from 'naive-ui'
 import Key from '../icons/Key.vue'
 import ToggleDb from '../icons/ToggleDb.vue'
-import { indexOf } from 'lodash'
+import { get, indexOf } from 'lodash'
 import { useI18n } from 'vue-i18n'
 import Refresh from '../icons/Refresh.vue'
 import CopyLink from '../icons/CopyLink.vue'
@@ -16,6 +16,8 @@ import useDialogStore from '../../stores/dialog'
 import { ClipboardSetText } from '../../../wailsjs/runtime'
 import useConnectionStore from '../../stores/connections'
 import { renderIcon } from '../../utils/render_model'
+import { useConfirmDialog } from '../../utils/confirm_dialog.js'
+
 
 interface ContextMenuParam {
   show: boolean
@@ -36,7 +38,7 @@ interface ExtendedTreeOption extends TreeOption {
   expanded?: boolean
 }
 
-const { t } = useI18n()
+const i18n = useI18n()
 const loading = ref(false)
 const loadingConnections = ref(false)
 const expandedKeys = ref<string[]>([])
@@ -59,12 +61,12 @@ const menuOptions: Record<number, Function> = {
       return [
         {
           key: 'db_reload',
-          label: t('reload'),
+          label: i18n.t('reload'),
           icon: renderIcon(Refresh),
         },
         {
           key: 'db_newkey',
-          label: t('new_key'),
+          label: i18n.t('new_key'),
           icon: renderIcon(Add),
         },
       ]
@@ -72,7 +74,7 @@ const menuOptions: Record<number, Function> = {
       return [
         {
           key: 'db_open',
-          label: t('open_db'),
+          label: i18n.t('open_db'),
           icon: renderIcon(Connect),
         },
       ]
@@ -81,17 +83,17 @@ const menuOptions: Record<number, Function> = {
   [ConnectionType.RedisKey]: () => [
     {
       key: 'key_reload',
-      label: t('reload'),
+      label: i18n.t('reload'),
       icon: renderIcon(Refresh),
     },
     {
       key: 'key_newkey',
-      label: t('new_key'),
+      label: i18n.t('new_key'),
       icon: renderIcon(Add),
     },
     {
       key: 'key_copy',
-      label: t('copy_path'),
+      label: i18n.t('copy_path'),
       icon: renderIcon(CopyLink),
     },
     {
@@ -100,19 +102,19 @@ const menuOptions: Record<number, Function> = {
     },
     {
       key: 'key_remove',
-      label: t('remove_path'),
+      label: i18n.t('remove_path'),
       icon: renderIcon(Delete),
     },
   ],
   [ConnectionType.RedisValue]: () => [
     {
       key: 'value_reload',
-      label: t('reload'),
+      label: i18n.t('reload'),
       icon: renderIcon(Refresh),
     },
     {
       key: 'value_copy',
-      label: t('copy_key'),
+      label: i18n.t('copy_key'),
       icon: renderIcon(CopyLink),
     },
     {
@@ -121,7 +123,7 @@ const menuOptions: Record<number, Function> = {
     },
     {
       key: 'value_remove',
-      label: t('remove_key'),
+      label: i18n.t('remove_key'),
       icon: renderIcon(Delete),
     },
   ],
@@ -296,6 +298,7 @@ const onLoadTree = async (node: ExtendedTreeOption) => {
   }
 }
 
+const confirmDialog = useConfirmDialog()
 const handleSelectContextMenu = (key: string) => {
   contextMenuParam.show = false
   const { name, db, key: nodeKey, redisKey } = contextMenuParam.currentNode as ExtendedTreeOption
@@ -310,29 +313,21 @@ const handleSelectContextMenu = (key: string) => {
       break
     case 'key_remove':
     case 'value_remove':
-      dialog.warning({
-        title: t('warning'),
-        content: t('delete_key_tip', { key: redisKey }),
-        closable: false,
-        autoFocus: false,
-        transformOrigin: 'center',
-        positiveText: t('confirm'),
-        negativeText: t('cancel'),
-        onPositiveClick: () => {
-          connectionStore.removeKey(name!, db!, redisKey!).then((success) => {
-            if (success) {
-              message.success(t('delete_key_succ', { key: redisKey }))
-            }
-          })
-        },
+      confirmDialog.warning(i18n.t('delete_key_tip', { key: redisKey }), () => {
+        connectionStore.removeKey(name as string, db as number, redisKey as string).then((success) => {
+          if (success) {
+            message.success(i18n.t('delete_key_succ', { key: redisKey }))
+          }
+        })
       })
+
       break
     case 'key_copy':
     case 'value_copy':
       ClipboardSetText(redisKey!)
           .then((succ) => {
             if (succ) {
-              message.success(t('copy_succ'))
+              message.success(i18n.t('copy_succ'))
             }
           })
           .catch((e: any) => {

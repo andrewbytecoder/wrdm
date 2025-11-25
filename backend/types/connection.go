@@ -22,7 +22,6 @@ type Connection struct {
 	Connections      []Connection `json:"connections,omitempty" yaml:"connections,omitempty"`
 }
 
-type Connections []Connection
 type ConnectionGroup struct {
 	GroupName   string             `json:"groupName" yaml:"group_name"`
 	Connections []ConnectionConfig `json:"connections" yaml:"connections"`

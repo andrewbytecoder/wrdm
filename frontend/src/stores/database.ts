@@ -22,6 +22,8 @@ import {
 import { ConnectionType } from '../consts/connection_type.js'
 import useTabStore from './tab.js'
 import useConnectionStore, {ConnectionItem} from './connections.js'
+import {types} from "../../wailsjs/go/models";
+import Connection = types.Connection;
 
 // interface ConnectionItem {
 //     key: string
@@ -195,12 +197,14 @@ const useDatabaseStore = defineStore('database', {
             const children: ConnectionItem[] = []
             for (let i = 0; i < db.length; i++) {
                 children.push({
+                    group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
+                    },
                     key: `${connName}/${db[i].name}`,
                     label: db[i].name,
                     name: connName,
                     keys: db[i].keys,
                     db: i,
-                    type: ConnectionType.RedisDB,
+                    type: ConnectionType[ConnectionType.RedisDB]
                     // isLeaf: false,
                 })
             }
@@ -239,13 +243,13 @@ const useDatabaseStore = defineStore('database', {
         getConnection(connName: string): ConnectionItem | null {
             const conn = this.connections
             for (let i = 0; i < conn.length; i++) {
-                if (conn[i].type === ConnectionType.Server && conn[i].key === connName) {
+                if (conn[i].type === ConnectionType[ConnectionType.Server] && conn[i].key === connName) {
                     return conn[i]
-                } else if (conn[i].type === ConnectionType.Group) {
+                } else if (conn[i].type === ConnectionType[ConnectionType.Group]) {
                     const children = conn[i].children
                     if (children) {
                         for (let j = 0; j < children.length; j++) {
-                            if (children[j].type === ConnectionType.Server && children[j].key === connName) {
+                            if (children[j].type === ConnectionType[ConnectionType.Server] && children[j].key === connName) {
                                 return children[j]
                             }
                         }
@@ -315,14 +319,16 @@ const useDatabaseStore = defineStore('database', {
                         const treeKey = `${handlePath}@${ConnectionType.RedisKey}`
                         if (!mark.hasOwnProperty(treeKey)) {
                             mark[treeKey] = {
+                                group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
+                                },
                                 key: `${connName}/db${db}/${treeKey}`,
                                 label: keyPart[i],
                                 name: connName,
                                 db,
                                 keys: 0,
                                 redisKey: handlePath,
-                                type: ConnectionType.RedisKey,
-                                children: [],
+                                type: ConnectionType[ConnectionType.RedisKey],
+                                children: []
                             }
                             sortedInsertChild(ks, mark[treeKey])
                         }
@@ -332,13 +338,15 @@ const useDatabaseStore = defineStore('database', {
                         // key
                         const treeKey = `${handlePath}@${ConnectionType.RedisValue}`
                         mark[treeKey] = {
+                            group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
+                            },
                             key: `${connName}/db${db}/${treeKey}`,
                             label: keyPart[i],
                             name: connName,
                             db,
                             keys: 0,
                             redisKey: handlePath,
-                            type: ConnectionType.RedisValue,
+                            type: ConnectionType[ConnectionType.RedisValue]
                         }
                         sortedInsertChild(ks, mark[treeKey])
                     }
@@ -419,13 +427,16 @@ const useDatabaseStore = defineStore('database', {
                 type: ConnectionType.Server, // 假设你有一个表示未知类型的枚举值
                 keys: 0,
                 name: connName,
-            })
+                group: '',
+                convertValues(a: any, classs: any, asMap?: boolean): any {
+                },
+            } )
 
             if (dbDetail == null) {
                 return
             }
 
-            const descendantChain: ConnectionItem[] = [dbDetail]
+            const descendantChain: ConnectionItem[] = [dbDetail as any]
 
             const keyPart = split(key, separator)
             let redisKey = ''
@@ -451,13 +462,15 @@ const useDatabaseStore = defineStore('database', {
                         if (isLastKeyPart) {
                             // key not exists, add new one
                             const item: ConnectionItem = {
+                                group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
+                                },
                                 key: currentKey,
                                 label: keyPart[i],
                                 name: connName,
                                 db,
                                 keys: 1,
                                 redisKey,
-                                type: ConnectionType.RedisValue,
+                                type: ConnectionType[ConnectionType.RedisValue]
                             }
                             if (isLast) {
                                 nodeList.push(item)
@@ -468,14 +481,16 @@ const useDatabaseStore = defineStore('database', {
                         } else {
                             // layer not exists, add new one
                             const item: ConnectionItem = {
+                                group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
+                                },
                                 key: currentKey,
                                 label: keyPart[i],
                                 name: connName,
                                 db,
                                 keys: 0,
                                 redisKey,
-                                type: ConnectionType.RedisKey,
-                                children: [],
+                                type: ConnectionType[ConnectionType.RedisKey],
+                                children: []
                             }
                             if (isLast) {
                                 nodeList.push(item)
@@ -509,9 +524,9 @@ const useDatabaseStore = defineStore('database', {
                     const children = get(descendantChain[i], 'children', []) as ConnectionItem[]
                     let keys = 0
                     for (const child of children) {
-                        if (child.type === ConnectionType.RedisKey) {
+                        if (child.type === ConnectionType[ConnectionType.RedisKey]) {
                             keys += get(child, 'keys', 1)
-                        } else if (child.type === ConnectionType.RedisValue) {
+                        } else if (child.type === ConnectionType[ConnectionType.RedisValue]) {
                             keys += get(child, 'keys', 0)
                         }
                     }
@@ -881,7 +896,7 @@ const useDatabaseStore = defineStore('database', {
                 return
             }
 
-            const descendantChain: ConnectionItem[] = [dbDetail]
+            const descendantChain: ConnectionItem[] = [dbDetail as any]
             const keyPart = split(key, separator)
             let redisKey = ''
             const keyLen = size(keyPart)

@@ -83,10 +83,8 @@ func (c *ConnectionService) TestConnection(host string, port int, username, pass
 }
 
 // ListConnection list all saved connection in local profile
-func (c *ConnectionService) ListConnection() (resp types.JSResp) {
-	resp.Success = true
-	resp.Data = c.conns.GetConnections()
-	return
+func (c *ConnectionService) ListConnection() []types.Connection {
+	return c.conns.GetConnections()
 }
 
 // GetConnection get connection profile by name

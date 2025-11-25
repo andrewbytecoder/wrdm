@@ -19,8 +19,8 @@ func NewConnections() *ConnectionsStorage {
 	}
 }
 
-func (c *ConnectionsStorage) defaultConnections() types.Connections {
-	return types.Connections{}
+func (c *ConnectionsStorage) defaultConnections() []types.Connection {
+	return []types.Connection{}
 }
 
 func (c *ConnectionsStorage) defaultConnectionItem() types.ConnectionConfig {
@@ -38,7 +38,7 @@ func (c *ConnectionsStorage) defaultConnectionItem() types.ConnectionConfig {
 	}
 }
 
-func (c *ConnectionsStorage) getConnections() (ret types.Connections) {
+func (c *ConnectionsStorage) getConnections() (ret []types.Connection) {
 	b, err := c.storage.Load()
 	if err != nil {
 		ret = c.defaultConnections()
@@ -61,12 +61,12 @@ func (c *ConnectionsStorage) getConnections() (ret types.Connections) {
 }
 
 // GetConnections get all store connections from local
-func (c *ConnectionsStorage) GetConnections() (ret types.Connections) {
+func (c *ConnectionsStorage) GetConnections() []types.Connection {
 	return c.getConnections()
 }
 
 // GetConnectionsFlat get all store connections from local flat(exclude group level)
-func (c *ConnectionsStorage) GetConnectionsFlat() (ret types.Connections) {
+func (c *ConnectionsStorage) GetConnectionsFlat() (ret []types.Connection) {
 	conns := c.getConnections()
 	for _, conn := range conns {
 		if conn.Type == "group" {
@@ -82,8 +82,8 @@ func (c *ConnectionsStorage) GetConnectionsFlat() (ret types.Connections) {
 func (c *ConnectionsStorage) GetConnection(name string) *types.Connection {
 	conns := c.getConnections()
 
-	var findConn func(string, string, types.Connections) *types.Connection
-	findConn = func(name, groupName string, conns types.Connections) *types.Connection {
+	var findConn func(string, string, []types.Connection) *types.Connection
+	findConn = func(name, groupName string, conns []types.Connection) *types.Connection {
 		for i, conn := range conns {
 			if conn.Type != "group" {
 				if conn.Name == name {
@@ -113,7 +113,7 @@ func (c *ConnectionsStorage) GetGroup(name string) *types.Connection {
 	}
 	return nil
 }
-func (c *ConnectionsStorage) saveConnections(conns types.Connections) error {
+func (c *ConnectionsStorage) saveConnections(conns []types.Connection) error {
 	b, err := yaml.Marshal(&conns)
 	if err != nil {
 		return err
@@ -153,7 +153,7 @@ func (c *ConnectionsStorage) CreateConnection(param types.ConnectionConfig) erro
 			// no group matched, create new group
 			conns = append(conns, types.Connection{
 				Type: "group",
-				Connections: types.Connections{
+				Connections: []types.Connection{
 					types.Connection{
 						ConnectionConfig: param,
 					},
@@ -174,36 +174,39 @@ func (c *ConnectionsStorage) UpdateConnection(name string, param types.Connectio
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	var updated bool
 	conns := c.getConnections()
-	for i, conn := range conns {
-		if conn.Name == name {
-			conns[i] = types.Connection{
-				ConnectionConfig: param,
-			}
-			updated = true
-		} else if conn.Type == "group" {
-			for j, conn2 := range conn.Connections {
-				if conn2.Name == name {
-					conns[i].Connections[j] = types.Connection{
+	var updated bool
+	var retrieve func([]types.Connection, string, types.ConnectionConfig) error
+	retrieve = func(conns []types.Connection, name string, param types.ConnectionConfig) error {
+		for i, conn := range conns {
+			if conn.Type != "group" {
+				if name != param.Name && conn.Name == param.Name {
+					return errors.New("duplicated connection name")
+				} else if conn.Name == name && !updated {
+					conns[i] = types.Connection{
 						ConnectionConfig: param,
 					}
 					updated = true
-					break
+				}
+			} else {
+				err := retrieve(conn.Connections, name, param)
+				if err != nil {
+					return err
 				}
 			}
 		}
-
-		if updated {
-			break
-		}
+		return nil
 	}
 
-	if updated {
-		return c.saveConnections(conns)
+	err := retrieve(conns, name, param)
+	if err != nil {
+		return err
+	}
+	if !updated {
+		return errors.New("connection not found")
 	}
 
-	return errors.New("connection not found")
+	return c.saveConnections(conns)
 }
 
 // RemoveConnection remove special connection
@@ -263,15 +266,24 @@ func (c *ConnectionsStorage) RenameGroup(name, newName string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
+	groupIndex := -1
 	conns := c.getConnections()
 	for i, conn := range conns {
-		if conn.Type == "group" && conn.Name == name {
-			conns[i].Name = newName
-			return c.saveConnections(conns)
+		if conn.Type == "group" {
+			if conn.Name == newName {
+				return errors.New("duplicated group name")
+			} else if conn.Name == name {
+				groupIndex = i
+			}
 		}
 	}
 
-	return errors.New("group not found")
+	if groupIndex == -1 {
+		return errors.New("group not found")
+	}
+
+	conns[groupIndex].Name = newName
+	return c.saveConnections(conns)
 }
 
 // RemoveGroup remove special group, include all connections under it
