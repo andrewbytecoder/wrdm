@@ -88,15 +88,16 @@ func (c *ConnectionService) ListConnection() []types.Connection {
 }
 
 // GetConnection get connection profile by name
-func (c *ConnectionService) GetConnection(name string) (resp types.JSResp) {
+func (c *ConnectionService) GetConnection(name string) *types.Connection {
 	conn := c.conns.GetConnection(name)
-	resp.Success = conn != nil
-	resp.Data = conn
-	return
+	if conn != nil {
+		return conn
+	}
+	return nil
 }
 
 // SaveConnection save connection config to local profile
-func (c *ConnectionService) SaveConnection(name string, param types.ConnectionConfig) (resp types.JSResp) {
+func (c *ConnectionService) SaveConnection(name string, param types.Connection) (resp types.JSResp) {
 	var err error
 	if len(name) > 0 {
 		// update connection

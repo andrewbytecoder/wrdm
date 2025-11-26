@@ -27,6 +27,7 @@ const onDisconnectAll = () => {
 
 <template>
   <div  v-if="true" class="nav-pane-container flex-box-v">
+<!--      上层的连接列表-->
     <ConnectionTree />
 
     <!-- bottom function bar -->

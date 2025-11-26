@@ -21,7 +21,8 @@ import {
 } from '../../wailsjs/go/services/connectionService.js'
 import { ConnectionType } from '../consts/connection_type.js'
 import useTabStore from './tab.js'
-import useConnectionStore, {ConnectionItem} from './connections.js'
+import useConnectionStore from './connections.js'
+import {ConnectionItem} from '../config/dbs'
 import {types} from "../../wailsjs/go/models";
 import Connection = types.Connection;
 
@@ -197,8 +198,7 @@ const useDatabaseStore = defineStore('database', {
             const children: ConnectionItem[] = []
             for (let i = 0; i < db.length; i++) {
                 children.push({
-                    group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
-                    },
+                    group: "",
                     key: `${connName}/${db[i].name}`,
                     label: db[i].name,
                     name: connName,
@@ -319,8 +319,7 @@ const useDatabaseStore = defineStore('database', {
                         const treeKey = `${handlePath}@${ConnectionType.RedisKey}`
                         if (!mark.hasOwnProperty(treeKey)) {
                             mark[treeKey] = {
-                                group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
-                                },
+                                group: "",
                                 key: `${connName}/db${db}/${treeKey}`,
                                 label: keyPart[i],
                                 name: connName,
@@ -338,8 +337,7 @@ const useDatabaseStore = defineStore('database', {
                         // key
                         const treeKey = `${handlePath}@${ConnectionType.RedisValue}`
                         mark[treeKey] = {
-                            group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
-                            },
+                            group: "",
                             key: `${connName}/db${db}/${treeKey}`,
                             label: keyPart[i],
                             name: connName,
@@ -462,8 +460,7 @@ const useDatabaseStore = defineStore('database', {
                         if (isLastKeyPart) {
                             // key not exists, add new one
                             const item: ConnectionItem = {
-                                group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
-                                },
+                                group: "",
                                 key: currentKey,
                                 label: keyPart[i],
                                 name: connName,
@@ -481,8 +478,7 @@ const useDatabaseStore = defineStore('database', {
                         } else {
                             // layer not exists, add new one
                             const item: ConnectionItem = {
-                                group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
-                                },
+                                group: "",
                                 key: currentKey,
                                 label: keyPart[i],
                                 name: connName,

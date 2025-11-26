@@ -125,7 +125,7 @@ func (c *ConnectionsStorage) saveConnections(conns []types.Connection) error {
 }
 
 // CreateConnection create new connection
-func (c *ConnectionsStorage) CreateConnection(param types.ConnectionConfig) error {
+func (c *ConnectionsStorage) CreateConnection(param types.Connection) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -145,24 +145,18 @@ func (c *ConnectionsStorage) CreateConnection(param types.ConnectionConfig) erro
 		}
 	}
 	if group != nil {
-		group.Connections = append(group.Connections, types.Connection{
-			ConnectionConfig: param,
-		})
+		group.Connections = append(group.Connections, param)
 	} else {
 		if len(param.Group) > 0 {
 			// no group matched, create new group
 			conns = append(conns, types.Connection{
 				Type: "group",
 				Connections: []types.Connection{
-					types.Connection{
-						ConnectionConfig: param,
-					},
+					param,
 				},
 			})
 		} else {
-			conns = append(conns, types.Connection{
-				ConnectionConfig: param,
-			})
+			conns = append(conns, param)
 		}
 	}
 
@@ -170,13 +164,13 @@ func (c *ConnectionsStorage) CreateConnection(param types.ConnectionConfig) erro
 }
 
 // UpdateConnection update existing connection by name
-func (c *ConnectionsStorage) UpdateConnection(name string, param types.ConnectionConfig) error {
+func (c *ConnectionsStorage) UpdateConnection(name string, cparam types.Connection) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	conns := c.getConnections()
 	var updated bool
-	var retrieve func([]types.Connection, string, types.ConnectionConfig) error
+	var retrieve func(conns []types.Connection, name string, param types.ConnectionConfig) error
 	retrieve = func(conns []types.Connection, name string, param types.ConnectionConfig) error {
 		for i, conn := range conns {
 			if conn.Type != "group" {
@@ -198,7 +192,7 @@ func (c *ConnectionsStorage) UpdateConnection(name string, param types.Connectio
 		return nil
 	}
 
-	err := retrieve(conns, name, param)
+	err := retrieve(conns, name, cparam.ConnectionConfig)
 	if err != nil {
 		return err
 	}

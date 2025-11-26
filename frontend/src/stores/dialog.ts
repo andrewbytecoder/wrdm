@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import useConnectionStore from './connections.js'
 import {types} from "../../wailsjs/go/models";
+import {ConnParam, ConnectionItem} from '../config/dbs';
 
 interface NewKeyParam {
     prefix: string
@@ -21,10 +22,12 @@ interface RenameKeyParam {
     key: string
 }
 
+
+
 const useDialogStore = defineStore('dialog', {
     state: () => ({
         connDialogVisible: false,
-        connParam: new types.Connection(),
+        connParam: {} as ConnectionItem,
 
         groupDialogVisible: false,
         editGroup: '',
@@ -63,7 +66,7 @@ const useDialogStore = defineStore('dialog', {
     actions: {
         openNewDialog() {
             this.connDialogVisible = true
-            this.connParam = new types.Connection
+            this.connParam = new ConnParam('', '', '', '', '127.0.0.1', 6379,'', '', '')
         },
         closeNewDialog() {
             this.connDialogVisible = false
@@ -72,8 +75,12 @@ const useDialogStore = defineStore('dialog', {
         async openEditDialog(name: string) {
             console.log('open edit dialog:' + name)
             const connStore = useConnectionStore()
-            const profile = await connStore.getConnectionProfile(name)
-            this.connParam = profile  || connStore.newDefaultConnection(name)
+            let profile = await connStore.getConnectionProfile(name)
+            if (!profile) {
+                profile = connStore.newDefaultConnection(name)
+                return
+            }
+            this.connParam = new ConnParam(profile.name, profile.group, "", "",profile.addr, profile.port, profile.username, profile.password, profile.defaultFilter, profile.keySeparator, profile.connTimeout, profile.execTimeout, profile.markColor, profile.type)
             this.connDialogVisible = true
         },
         closeEditDialog() {

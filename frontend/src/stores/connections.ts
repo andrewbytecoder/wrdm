@@ -27,24 +27,10 @@ import {
 } from '../../wailsjs/go/services/connectionService.js'
 import { ConnectionType } from '../consts/connection_type.js'
 import useTabStore from './tab.js'
-import {TreeOption} from 'naive-ui'
 import {types} from "../../wailsjs/go/models";
+import {ConnectionItem} from '../config/dbs'
 
 const separator = ':'
-
-// 定义类型
-export interface ConnectionItem extends types.Connection  {
-    key: string
-    label: string
-    db?: number
-    keys?: number
-    connected?: boolean
-    opened?: boolean
-    expanded?: boolean
-    isLeaf?: boolean
-    redisKey?: string
-    children?: ConnectionItem[]
-}
 
 // 数据库 每个redis 默认 16个数据库
 export interface DatabaseItem {
@@ -61,9 +47,9 @@ export interface DatabaseItem {
     isLeaf?: boolean
 }
 
-interface ConnectionGroup extends types.ConnectionConfig{
+interface ConnectionGroup extends ConnectionItem{
     Type: string
-    connections: Array<types.ConnectionConfig>
+    connections: Array<ConnectionItem>
 }
 
 interface ListConnectionResponse {
@@ -154,6 +140,7 @@ const useConnectionStore = defineStore('connections', {
     }),
     getters: {
         anyConnectionOpened(): boolean {
+            console.log(this.databases)
             return !isEmpty(this.databases)
         },
     },
@@ -176,8 +163,6 @@ const useConnectionStore = defineStore('connections', {
                     conns.push({
                         name: conn.name,
                         key: conn.name, group: "",
-                        convertValues(a: any, classs: any, asMap?: boolean): any {
-                        },
                         label: conn.name,
                         type: ConnectionType[ConnectionType.Server]
                     })
@@ -190,8 +175,6 @@ const useConnectionStore = defineStore('connections', {
 
                         children.push({
                             group: "",
-                            convertValues(a: any, classs: any, asMap?: boolean): any {
-                            },
                             name: item.name,
                             key: value,
                             label: item.name,
@@ -201,8 +184,6 @@ const useConnectionStore = defineStore('connections', {
                     conns.push({
                         group: "",
                         name: "",
-                        convertValues(a: any, classs: any, asMap?: boolean): any {
-                        },
                         key: conn.name,
                         label: conn.name,
                         type: ConnectionType[ConnectionType.Group],
@@ -220,11 +201,11 @@ const useConnectionStore = defineStore('connections', {
          * @param name
          * @returns {Promise<{}|null>}
          */
-        async getConnectionProfile(name:string):Promise<types.Connection> {
+        async getConnectionProfile(name:string):Promise<ConnectionItem> {
             try {
-                const { data, success } = await GetConnection(name)
-                if (success) {
-                    return data
+                const conns = await GetConnection(name)
+                if (conns != null) {
+                    return {name: conns.name, key: "", label: "", group: conns.group, addr: conns.addr, port: conns.port, username: conns.username, password: conns.password, defaultFilter: conns.defaultFilter, keySeparator: conns.keySeparator, connTimeout: conns.connTimeout, execTimeout: conns.execTimeout, markColor: conns.markColor}
                 }
             } finally {
             }
@@ -236,12 +217,11 @@ const useConnectionStore = defineStore('connections', {
          * @param {string} [name]
          * @returns {{types.Connection}}
          */
-        newDefaultConnection(name:string):types.Connection {
+        newDefaultConnection(name:string):ConnectionItem {
             return {
-                convertValues(a: any, classs: any, asMap?: boolean): any {
-                },
+                key: "", label: "",
                 group: '',
-                name: name || '',
+                name: name,
                 addr: '127.0.0.1',
                 port: 6379,
                 username: '',
@@ -281,9 +261,10 @@ const useConnectionStore = defineStore('connections', {
          * @param {types.Connection} param
          * @returns {Promise<{success: boolean, [msg]: string}>}
          */
-        async saveConnection(name:string, param:types.Connection):Promise<types.JSResp> {
-            const { success, msg } = await SaveConnection(name, param)
+        async saveConnection(name:string, param:ConnectionItem):Promise<types.JSResp> {
+            const { success, msg } = await SaveConnection(name, types.Connection.createFrom(param))
             if (!success) {
+                console.error(msg)
                 return { success: false, msg }
             }
 
