@@ -208,7 +208,7 @@ const useDatabaseStore = defineStore('database', {
                     // isLeaf: false,
                 })
             }
-            connNode.children = children
+            connNode.connections = children
             connNode.connected = true
         },
 
@@ -229,7 +229,7 @@ const useDatabaseStore = defineStore('database', {
                 // throw new Error('no such connection')
                 return false
             }
-            connNode.children = undefined
+            connNode.connections = undefined
             connNode.isLeaf = undefined
             connNode.connected = false
             connNode.expanded = false
@@ -246,7 +246,7 @@ const useDatabaseStore = defineStore('database', {
                 if (conn[i].type === ConnectionType[ConnectionType.Server] && conn[i].key === connName) {
                     return conn[i]
                 } else if (conn[i].type === ConnectionType[ConnectionType.Group]) {
-                    const children = conn[i].children
+                    const children = conn[i].connections
                     if (children) {
                         for (let j = 0; j < children.length; j++) {
                             if (children[j].type === ConnectionType[ConnectionType.Server] && children[j].key === connName) {
@@ -273,10 +273,10 @@ const useDatabaseStore = defineStore('database', {
             if (isEmpty(keys)) {
                 const connNode = this.getConnection(connName)
                 if (connNode) {
-                    const { children = [] } = connNode
-                    if (children[db]) {
-                        children[db].children = []
-                        children[db].opened = true
+                    const { connections = [] } = connNode
+                    if (connections[db]) {
+                        connections[db].connections = []
+                        connections[db].opened = true
                     }
                 }
                 return
@@ -291,9 +291,9 @@ const useDatabaseStore = defineStore('database', {
             // update all node item's children num
             const updateChildrenNum = (node: ConnectionItem) => {
                 let count = 0
-                const totalChildren = size(node.children)
+                const totalChildren = size(node.connections)
                 if (totalChildren > 0) {
-                    for (const elem of node.children!) {
+                    for (const elem of node.connections!) {
                         updateChildrenNum(elem)
                         count += elem.keys as number
                     }
@@ -327,11 +327,11 @@ const useDatabaseStore = defineStore('database', {
                                 keys: 0,
                                 redisKey: handlePath,
                                 type: ConnectionType[ConnectionType.RedisKey],
-                                children: []
+                                connections: []
                             }
                             sortedInsertChild(ks, mark[treeKey])
                         }
-                        ks = mark[treeKey].children!
+                        ks = mark[treeKey].connections!
                         handlePath += separator
                     } else {
                         // key
@@ -354,11 +354,11 @@ const useDatabaseStore = defineStore('database', {
             // append db node to current connection's children
             const connNode = this.getConnection(connName)
             if (connNode) {
-                const { children = [] } = connNode
-                if (children[db]) {
-                    children[db].children = keyStruct
-                    children[db].opened = true
-                    updateChildrenNum(children[db])
+                const { connections = [] } = connNode
+                if (connections[db]) {
+                    connections[db].connections = keyStruct
+                    connections[db].opened = true
+                    updateChildrenNum(connections[db])
                 }
             }
         },
@@ -418,7 +418,7 @@ const useDatabaseStore = defineStore('database', {
             const connNode = this.getConnection(connName)
             if (!connNode) return
 
-            const { children: dbs = [] } = connNode
+            const { connections: dbs = [] } = connNode
             const dbDetail = get(dbs, db,  {
                 key: '',
                 label: '',
@@ -486,7 +486,7 @@ const useDatabaseStore = defineStore('database', {
                                 keys: 0,
                                 redisKey,
                                 type: ConnectionType[ConnectionType.RedisKey],
-                                children: []
+                                connections: []
                             }
                             if (isLast) {
                                 nodeList.push(item)
@@ -879,7 +879,7 @@ const useDatabaseStore = defineStore('database', {
             const connNode = this.getConnection(connName)
             if (!connNode) return
 
-            const { children: dbs = [] } = connNode
+            const { connections: dbs = [] } = connNode
             const dbDetail = get(dbs, db,  {
                 key: '',
                 label: '',

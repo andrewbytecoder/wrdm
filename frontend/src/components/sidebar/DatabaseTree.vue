@@ -179,8 +179,7 @@ const onUpdateExpanded = (
 }
 
 const onUpdateSelectedKeys = ( keys: string[],
-                               option: TreeOption,
-                               meta: { node: TreeOption; action: 'expand' | 'collapse' }) => {
+                               option: TreeOption) => {
   selectedKeys.value = keys
 }
 
@@ -353,11 +352,11 @@ const handleOutsideContextMenu = () => {
       :data="connectionStore.databases[(props.server as String).toString()] || []"
       :expand-on-click="true"
       :expanded-keys="expandedKeys"
-      :on-update:selected-keys="onUpdateSelectedKeys"
+      @update:selected-keys="onUpdateSelectedKeys"
       :node-props="nodeProps"
-      :on-load="onLoadTree"
+      @load="onLoadTree"
       :selected-keys="selectedKeys"
-      :on-update:expanded-keys="onUpdateExpanded"
+      @update:expanded-keys="onUpdateExpanded"
       :render-label="renderLabel"
       :render-prefix="renderPrefix"
       :render-suffix="renderSuffix"

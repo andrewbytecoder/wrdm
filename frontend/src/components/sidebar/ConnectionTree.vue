@@ -2,11 +2,11 @@
 import useDialogStore from '../../stores/dialog'
 import { h, nextTick, onMounted, reactive, ref } from 'vue'
 import useConnectionStore,  { DatabaseItem } from '../../stores/connections'
-import { NIcon, useDialog, useMessage, TreeSelectOption  } from 'naive-ui'
+import { NIcon, useDialog, useMessage, TreeSelectOption, TreeOption  } from 'naive-ui'
 import { ConnectionType } from '../../consts/connection_type'
 import ToggleFolder from '../icons/ToggleFolder.vue'
 import ToggleServer from '../icons/ToggleServer.vue'
-import { indexOf } from 'lodash'
+import { debounce, indexOf, throttle } from 'lodash'
 import Config from '../icons/Config.vue'
 import Delete from '../icons/Delete.vue'
 import Unlink from '../icons/Unlink.vue'
@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n'
 import useTabStore from '../../stores/tab'
 import Edit from '../icons/Edit.vue'
 import { useConfirmDialog } from '../../utils/confirm_dialog.js'
+import {ConnectionItem} from "../../config/dbs";
+// import { TreeOption } from 'naive-ui/lib/tree/src/interface';
 
 interface ContextMenuParam {
   show: boolean
@@ -32,6 +34,12 @@ interface ExtendedTreeOption extends TreeSelectOption  {
   redisKey?: string
 }
 
+export interface DropOption {
+  node: ExtendedTreeOption;
+  dragNode: ExtendedTreeOption;
+  dropPosition: 'before' | 'after' | 'inside';
+}
+
 const i18n = useI18n()
 const loadingConnection = ref(false)
 const openingConnection = ref(false)
@@ -42,6 +50,10 @@ const message = useMessage()
 
 const expandedKeys = ref<string[]>([])
 const selectedKeys = ref<string[]>([])
+
+// 出来的数据是引用 ref类型，如果在js中需要进行解引用
+// 用于辅助 v-model进行数据解析
+const filterPattern = defineModel<string>('filterPattern')
 
 onMounted(async () => {
   try {
@@ -170,19 +182,11 @@ const renderPrefix = ({ option }: { option: ExtendedTreeOption }) => {
   }
 }
 
-// const onUpdateExpandedKeys = (
-//     value: string[],
-//     option: TreeOption,
-//     meta: { node: TreeOption; action: 'expand' | 'collapse' }
-// ) => {
-//   expandedKeys.value = value
-// }
-
-const onUpdateExpandedKeys = (keys: string[], option: TreeSelectOption, meta: { node: TreeSelectOption; action: 'expand' | 'collapse' }) => {
+const onUpdateExpandedKeys = (keys: string[], option: TreeSelectOption) => {
   expandedKeys.value = keys
 }
 
-const onUpdateSelectedKeys = (keys: string[], option: TreeSelectOption, meta: { node: TreeSelectOption; action: 'expand' | 'collapse' }) => {
+const onUpdateSelectedKeys = (keys: string[], option: TreeSelectOption) => {
   selectedKeys.value = keys
 }
 
@@ -286,6 +290,58 @@ const handleSelectContextMenu = (key: string) => {
   }
   console.warn('TODO: handle context menu:' + key)
 }
+const findSiblingsAndIndex = (node: TreeOption, nodes: TreeOption[] | undefined): [TreeOption[] | null, number | null] => {
+  if (!nodes) {
+    return [null, null]
+  }
+  for (let i = 0; i < nodes.length; ++i) {
+    const siblingNode = nodes[i]
+    if (siblingNode.key === node.key) {
+      return [nodes, i]
+    }
+    const [siblings, index] = findSiblingsAndIndex(node, siblingNode.children)
+    if (siblings && index !== null) {
+      return [siblings, index]
+    }
+  }
+  return [null, null]
+}
+
+// delay save until stop drop after 2 seconds
+const saveSort = debounce(() => connectionStore.saveConnectionSort(), 2000, { trailing: true })
+
+const handleDrop = ({ node, dragNode, dropPosition }: DropOption) => {
+  const [dragNodeSiblings, dragNodeIndex] = findSiblingsAndIndex(dragNode, connectionStore.connections)
+  if (dragNodeSiblings === null || dragNodeIndex === null) {
+    return
+  }
+  dragNodeSiblings.splice(dragNodeIndex, 1)
+  if (dropPosition === 'inside') {
+    if (node.children) {
+      node.children.unshift(dragNode)
+    } else {
+      node.children = [dragNode]
+    }
+  } else if (dropPosition === 'before') {
+    const [nodeSiblings, nodeIndex] = findSiblingsAndIndex(node, connectionStore.connections)
+    if (nodeSiblings === null || nodeIndex === null) {
+      return
+    }
+    nodeSiblings.splice(nodeIndex, 0, dragNode)
+  } else if (dropPosition === 'after') {
+    const [nodeSiblings, nodeIndex] = findSiblingsAndIndex(node, connectionStore.connections)
+    if (nodeSiblings === null || nodeIndex === null) {
+      return
+    }
+    nodeSiblings.splice(nodeIndex + 1, 0, dragNode)
+  }
+  connectionStore.connections = Array.from(connectionStore.connections)
+  saveSort()
+}
+
+const saveDrop = () => {}
+
+
 </script>
 
 <template>
@@ -294,15 +350,18 @@ const handleSelectContextMenu = (key: string) => {
       :block-line="true"
       :block-node="true"
       :cancelable="false"
+      :draggable="true"
       :data="connectionStore.connections"
       :expand-on-click="true"
       :expanded-keys="expandedKeys"
-      :on-update:selected-keys="onUpdateSelectedKeys"
+      @update:selected-keys="onUpdateSelectedKeys"
       :node-props="nodeProps"
-      :on-update:expanded-keys="onUpdateExpandedKeys"
+      @update:expanded-keys="onUpdateExpandedKeys"
       :selected-keys="selectedKeys"
       :render-label="renderLabel"
       :render-prefix="renderPrefix"
+      @drop="handleDrop"
+      :pattern="filterPattern"
       class="fill-height"
       virtual-scroll
   />

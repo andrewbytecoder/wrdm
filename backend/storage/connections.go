@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/andrewbytecoder/wrdm/backend/types"
+	sliceutil "github.com/andrewbytecoder/wrdm/backend/utils/slice"
 	"gopkg.in/yaml.v3"
 )
 
@@ -231,6 +232,47 @@ func (c *ConnectionsStorage) RemoveConnection(name string) error {
 	if !updated {
 		return errors.New("no match connection")
 	}
+	return c.saveConnections(conns)
+}
+
+// SaveSortedConnections save connection after sort
+func (c *ConnectionsStorage) SaveSortedConnections(sortedConns []types.Connection) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	conns := c.GetConnectionsFlat()
+	takeConn := func(name string) (types.Connection, bool) {
+		idx, ok := sliceutil.Find(conns, func(i int) bool {
+			return conns[i].Name == name
+		})
+		if ok {
+			ret := conns[idx]
+			conns = append(conns[:idx], conns[idx+1:]...)
+			return ret, true
+		}
+		return types.Connection{}, false
+	}
+	var replaceConn func(connections []types.Connection) []types.Connection
+	replaceConn = func(connections []types.Connection) []types.Connection {
+		var newConns []types.Connection
+		for _, conn := range conns {
+			if conn.Type == "group" {
+				newConns = append(newConns, types.Connection{
+					ConnectionConfig: types.ConnectionConfig{
+						Name: conn.Name,
+					},
+					Type:        "group",
+					Connections: replaceConn(conn.Connections),
+				})
+			} else {
+				if newConn, ok := takeConn(conn.Name); ok {
+					newConns = append(newConns, newConn)
+				}
+			}
+		}
+		return newConns
+	}
+	conns = replaceConn(sortedConns)
 	return c.saveConnections(conns)
 }
 

@@ -25,7 +25,7 @@ export interface ConnectionItem   {
     expanded?: boolean
     isLeaf?: boolean
     redisKey?: string
-    children?: ConnectionItem[]
+    connections?: ConnectionItem[]
 }
 
 
@@ -53,7 +53,7 @@ export class ConnParam implements ConnectionItem {
     expanded?: boolean
     isLeaf?: boolean
     redisKey?: string
-    children?: ConnectionItem[]
+    connections?: ConnectionItem[]
 
     constructor(name: string, group: string, key:string,label:string, addr?: string, port?: number, username?: string, password?: string, defaultFilter?: string, keySeparator?: string, connTimeout?: number, execTimeout?: number, markColor?: string, type?: string) {
         this.name = name

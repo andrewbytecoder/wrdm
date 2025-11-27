@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { get, isEmpty, last, remove, size, sortedIndexBy, split, uniq } from 'lodash'
+import { get, isEmpty, last, map, remove, size, sortedIndexBy, split, uniq } from 'lodash'
 import {
     AddHashField,
     AddListItem,
@@ -17,6 +17,7 @@ import {
     RenameKey,
     RenameGroup,
     SaveConnection,
+    SaveSortedConnection,
     SetHashValue,
     SetKeyTTL,
     SetKeyValue,
@@ -49,7 +50,6 @@ export interface DatabaseItem {
 
 interface ConnectionGroup extends ConnectionItem{
     Type: string
-    connections: Array<ConnectionItem>
 }
 
 interface ListConnectionResponse {
@@ -187,7 +187,7 @@ const useConnectionStore = defineStore('connections', {
                         key: conn.name,
                         label: conn.name,
                         type: ConnectionType[ConnectionType.Group],
-                        children: children
+                        connections: children
                     })
                 }
             }
@@ -205,7 +205,7 @@ const useConnectionStore = defineStore('connections', {
             try {
                 const conns = await GetConnection(name)
                 if (conns != null) {
-                    return {name: conns.name, key: "", label: "", group: conns.group, addr: conns.addr, port: conns.port, username: conns.username, password: conns.password, defaultFilter: conns.defaultFilter, keySeparator: conns.keySeparator, connTimeout: conns.connTimeout, execTimeout: conns.execTimeout, markColor: conns.markColor}
+                    return {name: conns.name, key: "", label: "", group: conns.group || "", addr: conns.addr, port: conns.port, username: conns.username, password: conns.password, defaultFilter: conns.defaultFilter, keySeparator: conns.keySeparator, connTimeout: conns.connTimeout, execTimeout: conns.execTimeout, markColor: conns.markColor}
                 }
             } finally {
             }
@@ -244,7 +244,7 @@ const useConnectionStore = defineStore('connections', {
                 if (conns[i].type === ConnectionType[ConnectionType.Server] && conns[i].key === name) {
                     return conns[i]
                 } else if (conns[i].type === ConnectionType[ConnectionType.Group]) {
-                    const children = conns[i].children || []
+                    const children = conns[i].connections || []
                     for (let j = 0; j < children.length; j++) {
                         if (children[j].type === ConnectionType[ConnectionType.Server] && conns[i].key === name) {
                             return children[j]
@@ -272,6 +272,38 @@ const useConnectionStore = defineStore('connections', {
             await this.initConnections(true)
             return {data: undefined, msg: "save connection success", success: true }
         },
+
+        /**
+         * save connection
+         * @returns {Promise<void>}
+          */
+        async saveConnectionSort(): Promise<void> {
+            const mapToList = (conns: ConnectionItem[]):types.Connection[] => {
+                const list: types.Connection[] = []
+                for (const conn of conns) {
+                    if (conn.type === ConnectionType[ConnectionType.Group]) {
+                        const children = mapToList(conn.connections!)
+                        list.push({
+                            group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
+                            },
+                            name: conn.label,
+                            type: 'group',
+                            connections: children
+                        })
+                    } else if (conn.type === ConnectionType[ConnectionType.Server]) {
+                        list.push({
+                            group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
+                            },
+                            name: conn.name
+                        })
+                    }
+                }
+                return list
+            }
+            const s = mapToList(this.connections)
+            await SaveSortedConnection(s)
+        },
+
 
         /**
          * Check if connection is connected
