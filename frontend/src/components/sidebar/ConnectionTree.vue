@@ -2,7 +2,7 @@
 import useDialogStore from '../../stores/dialog'
 import { h, nextTick, onMounted, reactive, ref } from 'vue'
 import useConnectionStore,  { DatabaseItem } from '../../stores/connections'
-import { NIcon, useDialog, useMessage, TreeSelectOption, TreeOption  } from 'naive-ui'
+import { NIcon, useDialog, useMessage, TreeSelectOption, TreeOption, TreeDropInfo  } from 'naive-ui'
 import { ConnectionType } from '../../consts/connection_type'
 import ToggleFolder from '../icons/ToggleFolder.vue'
 import ToggleServer from '../icons/ToggleServer.vue'
@@ -290,27 +290,42 @@ const handleSelectContextMenu = (key: string) => {
   }
   console.warn('TODO: handle context menu:' + key)
 }
-const findSiblingsAndIndex = (node: TreeOption, nodes: TreeOption[] | undefined): [TreeOption[] | null, number | null] => {
-  if (!nodes) {
+// const findSiblingsAndIndex = (node: TreeOption, nodes: TreeOption[] | undefined): [TreeOption[] | null, number | null] => {
+//   if (!nodes) {
+//     return [null, null]
+//   }
+//   for (let i = 0; i < nodes.length; ++i) {
+//     const siblingNode = nodes[i]
+//     if (siblingNode.key === node.key) {
+//       return [nodes, i]
+//     }
+//     const [siblings, index] = findSiblingsAndIndex(node, siblingNode.children)
+//     if (siblings && index !== null) {
+//       return [siblings, index]
+//     }
+//   }
+//   return [null, null]
+// }
+function findSiblingsAndIndex(
+    node: TreeOption,
+    nodes?: TreeOption[]
+): [TreeOption[], number] | [null, null] {
+  if (!nodes)
     return [null, null]
-  }
   for (let i = 0; i < nodes.length; ++i) {
     const siblingNode = nodes[i]
-    if (siblingNode.key === node.key) {
+    if (siblingNode.key === node.key)
       return [nodes, i]
-    }
     const [siblings, index] = findSiblingsAndIndex(node, siblingNode.children)
-    if (siblings && index !== null) {
+    if (siblings && index !== null)
       return [siblings, index]
-    }
   }
   return [null, null]
 }
-
 // delay save until stop drop after 2 seconds
 const saveSort = debounce(() => connectionStore.saveConnectionSort(), 2000, { trailing: true })
 
-const handleDrop = ({ node, dragNode, dropPosition }: DropOption) => {
+const handleDrop = ({ node, dragNode, dropPosition }: TreeDropInfo) => {
   const [dragNodeSiblings, dragNodeIndex] = findSiblingsAndIndex(dragNode, connectionStore.connections)
   if (dragNodeSiblings === null || dragNodeIndex === null) {
     return
