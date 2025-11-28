@@ -290,22 +290,7 @@ const handleSelectContextMenu = (key: string) => {
   }
   console.warn('TODO: handle context menu:' + key)
 }
-// const findSiblingsAndIndex = (node: TreeOption, nodes: TreeOption[] | undefined): [TreeOption[] | null, number | null] => {
-//   if (!nodes) {
-//     return [null, null]
-//   }
-//   for (let i = 0; i < nodes.length; ++i) {
-//     const siblingNode = nodes[i]
-//     if (siblingNode.key === node.key) {
-//       return [nodes, i]
-//     }
-//     const [siblings, index] = findSiblingsAndIndex(node, siblingNode.children)
-//     if (siblings && index !== null) {
-//       return [siblings, index]
-//     }
-//   }
-//   return [null, null]
-// }
+
 function findSiblingsAndIndex(
     node: TreeOption,
     nodes?: TreeOption[]
@@ -353,9 +338,6 @@ const handleDrop = ({ node, dragNode, dropPosition }: TreeDropInfo) => {
   connectionStore.connections = Array.from(connectionStore.connections)
   saveSort()
 }
-
-const saveDrop = () => {}
-
 
 </script>
 

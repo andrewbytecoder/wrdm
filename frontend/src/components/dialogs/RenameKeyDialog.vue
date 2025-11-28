@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import useDialog from '../../stores/dialog'
-import useConnectionStore from '../../stores/database'
+import useConnectionStore from '../../stores/connections'
 import { useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 

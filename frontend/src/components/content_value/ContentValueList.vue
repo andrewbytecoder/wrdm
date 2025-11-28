@@ -7,7 +7,7 @@ import { NButton, NCode, NIcon, NInput, useMessage, DataTableColumn } from 'naiv
 import { size } from 'lodash'
 import { types, types as redisTypes } from '../../consts/support_redis_type.js'
 import EditableTableColumn from '../common/EditableTableColumn.vue'
-import useConnectionStore from '../../stores/database'
+import useConnectionStore from '../../stores/connections'
 import useDialogStore from '../../stores/dialog.js'
 import type { PropType } from 'vue'
 

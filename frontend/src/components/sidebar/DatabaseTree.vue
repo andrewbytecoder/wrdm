@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { h, nextTick, onMounted, reactive, ref } from 'vue'
+import { h, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ConnectionType } from '../../consts/connection_type'
 import { NIcon, useDialog, useMessage, TreeOption } from 'naive-ui'
 import Key from '../icons/Key.vue'
 import ToggleDb from '../icons/ToggleDb.vue'
-import { get, indexOf } from 'lodash'
+import { get, indexOf, size } from 'lodash'
 import { useI18n } from 'vue-i18n'
 import Refresh from '../icons/Refresh.vue'
 import CopyLink from '../icons/CopyLink.vue'
@@ -178,6 +178,14 @@ const onUpdateExpanded = (
   }
 }
 
+watch(
+    () => selectedKeys,
+    (keys) => {
+      if (size(keys) > 0) {
+        console.log('selected')
+      }
+    }
+)
 const onUpdateSelectedKeys = ( keys: string[],
                                option: TreeOption) => {
   selectedKeys.value = keys
@@ -234,27 +242,16 @@ const renderSuffix = ({ option }: { option: ExtendedTreeOption }) => {
 const nodeProps = ({ option }: { option: ExtendedTreeOption }) => {
   return {
     onClick() {
-      connectionStore.select({ key: option.redisKey as  string,
-        name: option.name as string,
-        db: option.db as number,
-        type: option.type as number, redisKey: option.redisKey as string })
-      // console.log('[click]:' + JSON.stringify(option))
+      const { key, name, db, type, redisKey } = option
+      if (option.type === ConnectionType.RedisValue) {
+        connectionStore.loadKeyValue(name || "", db || 0, redisKey || "")
+      }
     },
     onDblclick: async () => {
       if (loading.value) {
         console.warn('TODO: alert to ignore double click when loading')
         return
       }
-      switch (option.type) {
-        case ConnectionType.Server:
-          option.isLeaf = false
-          break
-
-        case ConnectionType.RedisDB:
-          option.isLeaf = false
-          break
-      }
-
       // default handle is expand current node
       nextTick().then(() => expandKey(option.key!))
     },
@@ -306,6 +303,9 @@ const handleSelectContextMenu = (key: string) => {
       // case 'db_reload':
       //     connectionStore.loadKeyValue()
       //     break
+    case 'db_open':
+      nextTick().then(() => expandKey(nodeKey!))
+      break
     case 'db_newkey':
     case 'key_newkey':
       dialogStore.openNewKeyDialog(redisKey!, name!, db!)

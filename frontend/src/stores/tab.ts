@@ -1,4 +1,4 @@
-import {find, findIndex, size} from 'lodash'
+import {find, findIndex, get, size} from 'lodash'
 import { defineStore } from 'pinia'
 
 export interface TabItem {
@@ -42,26 +42,9 @@ const useTabStore = defineStore('tab', {
         },
 
         currentTab(): TabItem | null {
-            // 如果 activatedIndex 越界，优先返回第一个 tab（如果存在），否则返回 null
-            const idx = (this.activatedIndex >= 0 && this.activatedIndex < this.tabs.length)
-                ? this.activatedIndex
-                : 0
-            return this.tabs[idx] || null
+            return get(this.tabs, this.activatedIndex)
         },
 
-        currentTabIndex() : TabItem | null{
-            const len = size(this.tabs)
-            if (len === 0) return null
-
-            if (this.activatedIndex < 0 || this.activatedIndex >= len) {
-                this.activatedIndex = 0
-            }
-
-            const idx = (this.activatedIndex >= 0 && this.activatedIndex < len)
-                ? this.activatedIndex
-                : 0
-            return this.tabs[idx] || null
-        },
         // newBlankTab(): void {
         //     this.tabList.push({
         //         name: Date.now().toString(),

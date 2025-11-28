@@ -5,7 +5,7 @@ import Edit from './icons/Edit.vue'
 import Refresh from './icons/Refresh.vue'
 import Timer from './icons/Timer.vue'
 import RedisTypeTag from './common/RedisTypeTag.vue'
-import useConnectionStore from '../stores/database'
+import useConnectionStore from '../stores/connections'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
 import IconButton from './common/IconButton.vue'
@@ -44,13 +44,15 @@ const onConfirmDelete = async () => {
 }
 </script>
 
+
 <template>
   <div class="content-toolbar flex-box-h">
     <n-input-group>
       <redis-type-tag :type="props.keyType" size="large"></redis-type-tag>
       <n-input v-model:value="props.keyPath">
         <template #suffix>
-          <icon-button :icon="Refresh" :tooltip="$t('reload_key')" size="18" @click="onReloadKey" />
+<!--          带不带 : 只是是否动态绑定变量，对于后面的 probs 都能取到 -->
+          <icon-button :icon="Refresh"  tTooltip="reload_key" size="18" @click="onReloadKey" />
         </template>
       </n-input>
     </n-input-group>
@@ -69,12 +71,25 @@ const onConfirmDelete = async () => {
         </template>
         TTL
       </n-tooltip>
-      <n-button @click="dialogStore.openRenameKeyDialog(props.server ?? '', props.db ?? 0, props.keyPath ?? '')">
-        <template #icon>
-          <n-icon :component="Edit" size="18" />
-        </template>
-        {{ $t('rename_key') }}
-      </n-button>
+<!--      <n-button @click="dialogStore.openRenameKeyDialog(props.server ?? '', props.db ?? 0, props.keyPath ?? '')">-->
+<!--        <template #icon>-->
+<!--          <n-icon :component="Edit" size="18" />-->
+<!--        </template>-->
+<!--        {{ $t('rename_key') }}-->
+<!--      </n-button>-->
+      <icon-button
+          border
+          :icon="Edit"
+          t-tooltip="rename_key"
+          size="18"
+          @click="dialogStore.openRenameKeyDialog(props.server!, props.db!, props.keyPath!)"
+      />
+      <!--            <n-button @click="dialogStore.openRenameKeyDialog(props.server, props.db, props.keyPath)">-->
+      <!--                <template #icon>-->
+      <!--                    <n-icon :component="Edit" size="18" />-->
+      <!--                </template>-->
+      <!--                {{ $t('rename_key') }}-->
+      <!--            </n-button>-->
     </n-button-group>
     <n-tooltip>
       <template #trigger>

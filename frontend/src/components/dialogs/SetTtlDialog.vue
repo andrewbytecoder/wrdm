@@ -2,7 +2,7 @@
 import { reactive, ref, watch } from 'vue'
 import useDialog from '../../stores/dialog'
 import useTabStore from '../../stores/tab.js'
-import useConnectionStore from '../../stores/database'
+import useConnectionStore from '../../stores/connections'
 import { useMessage } from 'naive-ui'
 import type { TabItem } from '../../stores/tab.js'
 import {

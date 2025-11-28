@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import useConnectionStore from '../../stores/database'
+import useConnectionStore from '../../stores/connections'
 import { ConnectionType } from '../../consts/connection_type'
 import Close from '../icons/Close.vue'
 import type { PropType } from 'vue'

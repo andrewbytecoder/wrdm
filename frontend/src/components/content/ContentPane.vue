@@ -10,7 +10,7 @@ import { get, isEmpty, map, toUpper } from 'lodash'
 import useTabStore from '../../stores/tab'
 import type { Component } from 'vue'
 import { useDialog } from 'naive-ui'
-import useConnectionStore from '../../stores/database'
+import useConnectionStore from '../../stores/connections'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../../utils/confirm_dialog.js'
 

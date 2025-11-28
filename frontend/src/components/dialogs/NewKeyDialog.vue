@@ -2,13 +2,13 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { types } from '../../consts/support_redis_type'
 import useDialog from '../../stores/dialog'
-import { isEmpty } from 'lodash'
+import { isEmpty, keys, map } from 'lodash'
 import NewStringValue from '../new_value/NewStringValue.vue'
 import NewHashValue from '../new_value/NewHashValue.vue'
 import NewListValue from '../new_value/NewListValue.vue'
 import NewZSetValue from '../new_value/NewZSetValue.vue'
 import NewSetValue from '../new_value/NewSetValue.vue'
-import useConnectionStore from '../../stores/database'
+import useConnectionStore from '../../stores/connections'
 import { useI18n } from 'vue-i18n'
 import { useMessage, FormInst, FormRules, FormItemRule } from 'naive-ui'
 import type { Component } from 'vue'
@@ -47,7 +47,12 @@ const formRules = computed<FormRules>(() => {
     ttl: { required: true, message: requiredMsg, trigger: 'input' },
   }
 })
-
+const dbOptions = computed(() =>
+    map(keys(connectionStore.databases[newForm.server]), (key) => ({
+      label: key,
+      value: parseInt(key),
+    }))
+)
 const newFormRef = ref<FormInst | null>(null)
 
 const formLabelWidth = '60px'
@@ -149,6 +154,9 @@ const onClose = () => {
       >
         <n-form-item :label="$t('key')" path="key" required>
           <n-input v-model:value="newForm.key" placeholder="" />
+        </n-form-item>
+        <n-form-item label="DB" path="db" required>
+          <n-select v-model:value="newForm.db" :options="dbOptions" />
         </n-form-item>
         <n-form-item :label="$t('type')" path="type" required>
           <n-select v-model:value="newForm.type" :options="options" />

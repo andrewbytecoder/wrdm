@@ -6,7 +6,7 @@ import { TestConnection } from '../../../wailsjs/go/services/connectionService.j
 import useDialog from '../../stores/dialog'
 import { useMessage, FormInst, FormRules, FormValidationError } from 'naive-ui'
 import Close from '../icons/Close.vue'
-import useConnectionStore from '../../stores/connections.js'
+import useConnectionStore from '../../stores/connections'
 import {types} from "../../../wailsjs/go/models";
 import {ConnectionItem} from '../../config/dbs'
 
@@ -224,7 +224,7 @@ const onClose = () => {
             <n-input v-model:value="generalForm.name" :placeholder="$t('conn_name_tip')" />
           </n-form-item>
           <n-form-item v-if="!isEditMode" :label="$t('conn_group')" required>
-            <n-select v-model:value="generalForm.group" :options="groupOptions"></n-select>
+            <n-select v-model:value="generalForm.group" :options="groupOptions" />
           </n-form-item>
           <n-form-item :label="$t('conn_addr')" path="addr" required :show-require-mark="true">
             <n-input v-model:value="generalForm.addr" :placeholder="$t('conn_addr_tip')" />

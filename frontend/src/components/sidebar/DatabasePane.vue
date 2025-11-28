@@ -8,6 +8,9 @@ import Filter from '../icons/Filter.vue'
 import useTabStore from '../../stores/tab.js'
 import { computed } from 'vue'
 import { get } from 'lodash'
+import Delete from '../icons/Delete.vue'
+import Refresh from '../icons/Refresh.vue'
+
 
 const tabStore = useTabStore()
 const currentName = computed((): string => get(tabStore.currentTab, 'name', ''))
@@ -19,8 +22,9 @@ const currentName = computed((): string => get(tabStore.currentTab, 'name', ''))
         <!-- bottom function bar -->
 <!--      当显示数据库列表时界面下的按钮是实现的是空的-->
         <div class="nav-pane-bottom flex-box-h">
-            <IconButton :icon="AddLink" color="#555" size="20" stroke-width="4" t-tooltip="new_conn" />
-            <IconButton :icon="AddGroup" color="#555" size="20" stroke-width="4" t-tooltip="new_group" />
+          <icon-button :icon="AddLink" color="#555" size="20" stroke-width="4" t-tooltip="new_key" />
+          <icon-button :icon="Delete" color="#555" size="20" stroke-width="4" t-tooltip="remove_key" />
+          <icon-button :icon="Refresh" color="#555" size="20" stroke-width="4" t-tooltip="reload" />
             <n-input placeholder="db">
                 <template #prefix>
                     <n-icon :component="Filter" color="#aaa" size="20" />
