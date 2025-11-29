@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import ContentPane from './components/content/ContentPane.vue'
 import BrowserPane from './components/sidebar/BrowserPane.vue'
-import { computed, nextTick, onMounted, provide, reactive, ref, Ref } from 'vue'
+import { computed, nextTick, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { GetPreferences } from '../wailsjs/go/storage/PreferencesStorage.js'
 import { get } from 'lodash'
 import { useThemeVars } from 'naive-ui'
 import NavMenu from './components/sidebar/NavMenu.vue'
 import ConnectionPane from './components/sidebar/ConnectionPane.vue'
 import ContentServerPane from './components/content/ContentServerPane.vue'
 import useTabStore from './stores/tab.js'
+import usePreferencesStore from './stores/preferences.js'
+
 
 // 定义响应式数据类型
 interface Data {
@@ -36,21 +37,20 @@ interface Preferences {
   [key: string]: any
 }
 
-const preferences: Ref<Preferences> = ref({})
-provide('preferences', preferences)
 const i18n = useI18n()
 
 onMounted(async () => {
-  preferences.value = await GetPreferences()
+  const prefStore = usePreferencesStore()
+  await prefStore.loadPreferences()
   await nextTick(() => {
-    i18n.locale.value = get(preferences.value, 'general.language', 'en')
+    i18n.locale.value = get(prefStore.general, 'language', 'en')
   })
 })
 
 // TODO: apply font size to all elements
-const getFontSize = computed<string>(() => {
-  return get(preferences.value, 'general.font_size', 'en')
-})
+// const getFontSize = computed<string>(() => {
+//   return get(preferences.value, 'general.font_size', 'en')
+// })
 
 const handleResize = (evt: MouseEvent) => {
   if (data.resizing) {

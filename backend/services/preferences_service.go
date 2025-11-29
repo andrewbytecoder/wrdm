@@ -7,17 +7,17 @@ import (
 	"github.com/andrewbytecoder/wrdm/backend/types"
 )
 
-type PreferencesService struct {
+type preferencesService struct {
 	pref *storage.PreferencesStorage
 }
 
-var preferences *PreferencesService
+var preferences *preferencesService
 var oncePreferences sync.Once
 
-func Preferences() *PreferencesService {
+func Preferences() *preferencesService {
 	if preferences == nil {
 		oncePreferences.Do(func() {
-			preferences = &PreferencesService{
+			preferences = &preferencesService{
 				pref: storage.NewPreferencesStorage(),
 			}
 		})
@@ -25,13 +25,13 @@ func Preferences() *PreferencesService {
 	return preferences
 }
 
-func (p *PreferencesService) GetPreferences() (resp types.JSResp) {
+func (p *preferencesService) GetPreferences() (resp types.JSResp) {
 	resp.Data = p.pref.GetPreferences()
 	resp.Success = true
 	return
 }
 
-func (p *PreferencesService) SetPreferences(values map[string]any) (resp types.JSResp) {
+func (p *preferencesService) SetPreferences(values map[string]any) (resp types.JSResp) {
 	err := p.pref.SetPreferencesN(values)
 	if err != nil {
 		resp.Msg = err.Error()
@@ -42,7 +42,7 @@ func (p *PreferencesService) SetPreferences(values map[string]any) (resp types.J
 	return
 }
 
-func (p *PreferencesService) RestorePreferences() (resp types.JSResp) {
+func (p *preferencesService) RestorePreferences() (resp types.JSResp) {
 	defaultPref := p.pref.RestoreDefault()
 	resp.Data = map[string]any{
 		"pref": defaultPref,

@@ -361,6 +361,10 @@ func (c *ConnectionService) GetKeyValue(connName string, db int, key string) map
 		return map[string]any{}
 	}
 
+	if keyType == "none" {
+		return map[string]any{}
+	}
+
 	var ttl int64
 	if dur, err = rdb.TTL(ctx, key).Result(); err != nil {
 		ttl = -1
