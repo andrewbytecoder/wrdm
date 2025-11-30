@@ -18,7 +18,7 @@ import useConnectionStore from '../../stores/connections'
 import { renderIcon } from '../../utils/render_model'
 import { useConfirmDialog } from '../../utils/confirm_dialog.js'
 
-
+// 当上面菜单打开的时候，将对应的数据都保存一份，这样在弹出的菜单中能获取到数据
 interface DropDownMenuParam {
   show: boolean
   x: number   // 英语记录鼠标位置在那个地弹出下拉框
@@ -191,8 +191,8 @@ const onUpdateSelectedKeys = (keys: number[], options: TreeOption[]) => {
     for (const node of options) {
       if (node.type === ConnectionType.RedisValue) {
         const { key, name, db, redisKey } = node
-        if (indexOf(selectedKeys.value, key) === -1 && typeof name === 'string' && typeof db === 'number' && typeof redisKey === 'string') {
-          connectionStore.loadKeyValue(name, db, redisKey)
+        if (indexOf(selectedKeys.value, key) === -1) {
+          connectionStore.loadKeyValue(name as string, db as number, redisKey as string)
         }
         break
       }

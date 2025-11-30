@@ -54,6 +54,7 @@ const hasTooltip = computed(() => {
         </n-icon>
       </n-button>
     </template>
+<!--    如果需要转换，优先使用能够进行国际化语言的变量进行显示-->
     {{ props.tTooltip ? $t(props.tTooltip) : props.tooltip }}
   </n-tooltip>
   <n-button v-else :text="!props.border" :disabled="props.disabled" @click="emit('click')">

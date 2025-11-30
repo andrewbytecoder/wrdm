@@ -488,6 +488,7 @@ const useConnectionStore = defineStore('connections', {
             dbs[db].isLeaf = false
             delete this.nodeMap[`${connName}#${db}`]
         },
+
         /**
          * load redis key
          * @param server
