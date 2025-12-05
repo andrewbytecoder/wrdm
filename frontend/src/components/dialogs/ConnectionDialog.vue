@@ -97,41 +97,41 @@ const generalFormRef = ref<FormInst | null>(null)
 const advanceFormRef = ref<FormInst | null>(null)
 
 const onSaveConnection = async () => {
-  // Validate general form
-  await generalFormRef.value?.validate((errors) => {
-    if (errors) {
-      // Dom更新的下一个时间段
-      nextTick(() => (tab.value = 'general'))
+    // Validate general form
+    await generalFormRef.value?.validate((errors) => {
+      if (errors) {
+        // Dom更新的下一个时间段
+        nextTick(() => (tab.value = 'general'))
+      }
+    })
+
+    // Validate advance form
+    await advanceFormRef.value?.validate((errors) => {
+      if (errors) {
+        nextTick(() => (tab.value = 'advanced'))
+      }
+    })
+
+    // Store new connection Promise返回的结果需要进行  await
+    const { success, msg } = await connectionStore.saveConnection(editName.value, generalForm.value)
+    if (!success) {
+      message.error(msg)
+      return
     }
-  })
 
-  // Validate advance form
-  await advanceFormRef.value?.validate((errors) => {
-    if (errors) {
-      nextTick(() => (tab.value = 'advanced'))
-    }
-  })
-
-  // Store new connection Promise返回的结果需要进行  await
-  const { success, msg } = await connectionStore.saveConnection(editName.value, generalForm.value)
-  if (!success) {
-    message.error(msg)
-    return
-  }
-
-  // 弹窗提示连接诶成功
-  message.success(i18n.t('handle_succ'))
-  // 关闭弹窗
-  onClose()
+    // 弹窗提示连接诶成功
+    message.success(i18n.t('handle_succ'))
+    // 关闭弹窗
+    onClose()
 }
 
 // 刚进来将所有值按照初始化进行设置
 const resetForm = () => {
-  generalForm.value = connectionStore.newDefaultConnection("")
-  generalFormRef.value?.restoreValidation()
-  showTestResult.value = false
-  testResult.value = ''
-  tab.value = 'general'
+    generalForm.value = connectionStore.newDefaultConnection("")
+    generalFormRef.value?.restoreValidation()
+    showTestResult.value = false
+    testResult.value = ''
+    tab.value = 'general'
 }
 
 watch(
@@ -140,42 +140,42 @@ watch(
     (visible) => {
       if (visible) {
         editName.value = get(dialogStore.connParam, 'name', '')
-        generalForm.value = dialogStore.connParam || connectionStore.newDefaultConnection("")
+        generalForm.value = dialogStore.connParam
       }
     }
 )
 
 const onTestConnection = async () => {
-  testResult.value = ''
-  // 显示连接进度条
-  loading.value = true
-  let result = ''
-  try {
-    const { addr, port, username, password } = generalForm.value
-    const { success = false, msg } = await TestConnection(addr as string, port as number, username as string, password as string)
-    if (!success) {
-      result = msg
-    }
-  } catch (e: any) {
-    result = e.message
-  } finally {
-    loading.value = false
-    showTestResult.value = true
-  }
-
-  if (!isEmpty(result)) {
-    testResult.value = result
-  } else {
     testResult.value = ''
-  }
+    // 显示连接进度条
+    loading.value = true
+    let result = ''
+    try {
+      const { addr, port, username, password } = generalForm.value
+      const { success = false, msg } = await TestConnection(addr as string, port as number, username as string, password as string)
+      if (!success) {
+        result = msg
+      }
+    } catch (e: any) {
+      result = e.message
+    } finally {
+      loading.value = false
+      showTestResult.value = true
+    }
+
+    if (!isEmpty(result)) {
+      testResult.value = result
+    } else {
+      testResult.value = ''
+    }
 }
 
 const onClose = () => {
-  if (isEditMode.value) {
-    dialogStore.closeEditDialog()
-  } else {
-    dialogStore.closeNewDialog()
-  }
+    if (isEditMode.value) {
+      dialogStore.closeEditDialog()
+    } else {
+      dialogStore.closeNewDialog()
+    }
 }
 </script>
 

@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import useConnectionStore from './connections.js'
-import {types} from "../../wailsjs/go/models";
 import {ConnParam, ConnectionItem} from '../config/dbs';
 
 interface NewKeyParam {
@@ -78,7 +77,8 @@ const useDialogStore = defineStore('dialog', {
     actions: {
         openNewDialog() {
             this.connDialogVisible = true
-            this.connParam = new ConnParam('', '', '', '', '127.0.0.1', 6379,'', '', '')
+            this.connParam = new ConnParam('', '', '', '', '127.0.0.1', 6379,
+                '', '', '*', ':', 60, 60, '', 0)
         },
         closeNewDialog() {
             this.connDialogVisible = false
@@ -92,7 +92,9 @@ const useDialogStore = defineStore('dialog', {
                 profile = connStore.newDefaultConnection(name)
                 return
             }
-            this.connParam = new ConnParam(profile.name, profile.group, "", "",profile.addr, profile.port, profile.username, profile.password, profile.defaultFilter, profile.keySeparator, profile.connTimeout, profile.execTimeout, profile.markColor, profile.type)
+            this.connParam = new ConnParam(profile.name, profile.group, "", "",profile.addr,
+                profile.port, profile.username, profile.password, profile.defaultFilter, profile.keySeparator,
+                profile.connTimeout, profile.execTimeout, profile.markColor, profile.type)
             this.connDialogVisible = true
         },
         closeEditDialog() {
