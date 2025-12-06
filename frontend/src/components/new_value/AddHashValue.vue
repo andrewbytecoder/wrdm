@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { flatMap, reject } from 'lodash'
 import Add from '../icons/Add.vue'
 import Delete from '../icons/Delete.vue'
 import IconButton from '../common/IconButton.vue'
 import { useI18n } from 'vue-i18n'
 import type { PropType } from 'vue'
+
+// 这里是在界面点击新增按钮时，触发的函数
 
 interface Hash {
   key: string
@@ -17,21 +19,9 @@ interface UpdateOption {
   label: string
 }
 
-const type = defineModel<number>('type')
-
-const props = defineProps({
-  value: {
-    type: Array as PropType<Array<string>>,
-    default: () => []
-  }
-})
-
-const emit = defineEmits<{
-  (e: 'update:value', value: Array<string>): void
-}>()
+const emit = defineEmits(['update:value', 'update:type'])
 
 const i18n = useI18n()
-
 const updateOption: UpdateOption[] = [
   {
     value: 0,
@@ -43,26 +33,40 @@ const updateOption: UpdateOption[] = [
   },
 ]
 
-const kvList = ref<Hash[]>([{ key: '', value: '' }])
+const props = defineProps({
+  type: Number,
+})
 
-const onUpdate = (val: Hash[]) => {
-  val = reject(val, { key: '' }) as Hash[]
+// 自动声明 prop: modelValue，emit: update:modelValue
+const modelValue = defineModel<Array<{ key: string; value: string }>>({
+  required: true
+})
+
+
+const kvList = reactive([{ key: '', value: '' }])
+
+
+const onUpdate = (val: Array<{ key: string; value: string }>) => {
+  //  移除 key为空的项
+  console.log("console value", val)
+  val = reject(val, { key: '' })
   emit(
       'update:value',
       flatMap(val, (item) => [item.key, item.value])
   )
 }
+
 </script>
 
 <template>
-  <n-form-item label="lslslsl" required>
-    <n-radio-group v-model:value="type" >
+  <n-form-item :label="$t('type')">
+    <n-radio-group :value="props.type" @update:value="(val:any) => emit('update:type', val)">
       <n-radio-button v-for="(op, i) in updateOption" :key="i" :label="op.label" :value="op.value" />
     </n-radio-group>
   </n-form-item>
   <n-form-item :label="$t('element')" required>
     <n-dynamic-input
-        v-model:value="kvList"
+        v-model:value="modelValue"
         :key-placeholder="$t('enter_field')"
         :value-placeholder="$t('enter_value')"
         preset="pair"

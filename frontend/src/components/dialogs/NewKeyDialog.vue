@@ -101,6 +101,7 @@ watch(
 const connectionStore = useConnectionStore()
 
 const onAdd = async () => {
+  // 校验数据是否合法
   await newFormRef.value?.validate((errors) => {
     if (!errors) {
       message.success('Valid')
@@ -112,6 +113,7 @@ const onAdd = async () => {
   })
 
   try {
+    //  将对应的数据取出
     const { server, db, key, type, ttl } = newForm
     let { value } = newForm
     if (value == null) {
@@ -137,9 +139,8 @@ const onClose = () => {
   <n-modal
       v-model:show="dialogStore.newKeyDialogVisible"
       :closable="false"
-      :close-on-esc="true"
+      :close-on-esc="false"
       :mask-closable="false"
-      :animated="true"
       :negative-button-props="{ size: 'medium' }"
       :negative-text="$t('cancel')"
       :positive-button-props="{ size: 'medium' }"

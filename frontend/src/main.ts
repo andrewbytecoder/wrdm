@@ -43,7 +43,9 @@ import {
     NButtonGroup,
     NSkeleton,
     NLog,
-    NDynamicInput
+    NDynamicInput,
+    NDataTable,
+    NPopconfirm
 } from "naive-ui";
 
 import { createI18n } from 'vue-i18n'
@@ -96,6 +98,9 @@ app.component('NButtonGroup', NButtonGroup)
 app.component('NSkeleton', NSkeleton)
 app.component('NLog', NLog)
 app.component('NDynamicInput', NDynamicInput)
+app.component('NDataTable', NDataTable)
+app.component('NPopconfirm', NPopconfirm)
+
 
 
 app.use(

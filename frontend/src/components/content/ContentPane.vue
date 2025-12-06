@@ -128,6 +128,7 @@ const onCloseTab = (tabIndex: number) => {
         :is="valueComponents[tabContent.type]"
         :db="tabContent.db"
         :key-path="tabContent.key"
+        :key-type="tabContent.type"
         :name="tabContent.name"
         :ttl="tabContent.ttl"
         :value="tabContent.value"

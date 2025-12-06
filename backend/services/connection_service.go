@@ -488,6 +488,7 @@ func (c *ConnectionService) SetKeyValue(connName string, db int, key, keyType st
 			})
 		}
 	case "hash":
+		fmt.Println("hash", value)
 		if strs, ok := value.([]any); !ok {
 			resp.Msg = "invalid hash value"
 			return
