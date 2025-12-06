@@ -513,7 +513,7 @@ func (c *ConnectionService) SetKeyValue(connName string, db int, key, keyType st
 			return
 		} else {
 			_, err = rdb.Pipelined(ctx, func(pipe redis.Pipeliner) error {
-				if len(strs) > 1 {
+				if len(strs) > 0 {
 					for _, str := range strs {
 						pipe.SAdd(ctx, key, str.(string))
 					}

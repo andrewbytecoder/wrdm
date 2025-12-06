@@ -27,7 +27,10 @@ const onUpdate = (val: string[]) => {
 
 <template>
     <n-form-item :label="$t('element')" required>
-        <n-dynamic-input v-model:value="list" :placeholder="$t('enter_elem')" @update:value="onUpdate">
+        <n-dynamic-input
+            v-model:value="list"
+            :placeholder="$t('enter_elem')"
+            @update:value="onUpdate">
             <template #action="{ index, create, remove, move }">
                 <icon-button v-if="list.length > 1" :icon="Delete" size="18" @click="() => remove(index)" />
                 <icon-button :icon="Add" size="18" @click="() => create(index)" />

@@ -15,8 +15,6 @@ const emit = defineEmits<{
 }>()
 
 const onUpdate = (val: Array<{ key: string; value: string }>) => {
-  //  移除 key为空的项
-  console.log("console value", val)
   val = reject(val, { key: '' })
   emit(
       'update:value',
