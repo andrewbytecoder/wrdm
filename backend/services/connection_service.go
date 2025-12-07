@@ -531,12 +531,13 @@ func (c *ConnectionService) SetKeyValue(connName string, db int, key, keyType st
 			resp.Msg = "invalid zset value"
 			return
 		} else {
+			fmt.Println("zset", strs)
 			_, err = rdb.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 				var members []redis.Z
 				for i := 0; i < len(strs); i += 2 {
 					members = append(members, redis.Z{
-						Score:  strs[i].(float64),
-						Member: strs[i+1],
+						Member: strs[i],
+						Score:  strs[i+1].(float64),
 					})
 				}
 
