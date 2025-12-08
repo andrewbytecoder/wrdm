@@ -42,7 +42,6 @@ export interface DropOption {
 }
 
 const i18n = useI18n()
-const loadingConnection = ref(false)
 const openingConnection = ref(false)
 const connectionStore = useConnectionStore()
 const tabStore = useTabStore()
@@ -55,16 +54,6 @@ const selectedKeys = ref<string[]>([])
 // 出来的数据是引用 ref类型，如果在js中需要进行解引用
 // 用于辅助 v-model进行数据解析
 const filterPattern = defineModel<string>('filterPattern')
-
-onMounted(async () => {
-  try {
-    loadingConnection.value = true
-    await nextTick()
-    await connectionStore.initConnections(false)
-  } finally {
-    loadingConnection.value = false
-  }
-})
 
 const contextMenuParam = reactive<ContextMenuParam>({
   show: false,
@@ -310,32 +299,32 @@ const saveSort = debounce(connectionStore.saveConnectionSorted, 2000, { trailing
 
 //  拖动
 const handleDrop = ({ node, dragNode, dropPosition }: TreeDropInfo) => {
-  const [dragNodeSiblings, dragNodeIndex] = findSiblingsAndIndex(dragNode, connectionStore.connections)
-  if (dragNodeSiblings === null || dragNodeIndex === null) {
-    return
-  }
-  dragNodeSiblings.splice(dragNodeIndex, 1)
-  if (dropPosition === 'inside') {
-    if (node.children) {
-      node.children.unshift(dragNode)
-    } else {
-      node.children = [dragNode]
-    }
-  } else if (dropPosition === 'before') {
-    const [nodeSiblings, nodeIndex] = findSiblingsAndIndex(node, connectionStore.connections)
-    if (nodeSiblings === null || nodeIndex === null) {
+    const [dragNodeSiblings, dragNodeIndex] = findSiblingsAndIndex(dragNode, connectionStore.connections)
+    if (dragNodeSiblings === null || dragNodeIndex === null) {
       return
     }
-    nodeSiblings.splice(nodeIndex, 0, dragNode)
-  } else if (dropPosition === 'after') {
-    const [nodeSiblings, nodeIndex] = findSiblingsAndIndex(node, connectionStore.connections)
-    if (nodeSiblings === null || nodeIndex === null) {
-      return
+    dragNodeSiblings.splice(dragNodeIndex, 1)
+    if (dropPosition === 'inside') {
+      if (node.children) {
+        node.children.unshift(dragNode)
+      } else {
+        node.children = [dragNode]
+      }
+    } else if (dropPosition === 'before') {
+      const [nodeSiblings, nodeIndex] = findSiblingsAndIndex(node, connectionStore.connections)
+      if (nodeSiblings === null || nodeIndex === null) {
+        return
+      }
+      nodeSiblings.splice(nodeIndex, 0, dragNode)
+    } else if (dropPosition === 'after') {
+      const [nodeSiblings, nodeIndex] = findSiblingsAndIndex(node, connectionStore.connections)
+      if (nodeSiblings === null || nodeIndex === null) {
+        return
+      }
+      nodeSiblings.splice(nodeIndex + 1, 0, dragNode)
     }
-    nodeSiblings.splice(nodeIndex + 1, 0, dragNode)
-  }
-  connectionStore.connections = Array.from(connectionStore.connections)
-  saveSort()
+    connectionStore.connections = Array.from(connectionStore.connections)
+    saveSort()
 }
 
 </script>
@@ -362,7 +351,7 @@ const handleDrop = ({ node, dragNode, dropPosition }: TreeDropInfo) => {
   />
 
   <!-- status display modal -->
-  <n-modal :show="loadingConnection || openingConnection" transform-origin="center">
+  <n-modal :show="openingConnection" transform-origin="center">
     <n-card
         :bordered="false"
         :content-style="{ textAlign: 'center' }"
@@ -372,7 +361,7 @@ const handleDrop = ({ node, dragNode, dropPosition }: TreeDropInfo) => {
     >
       <n-spin>
         <template #description>
-          {{ openingConnection ? $t('opening_connection') : '' }}
+          {{ $t('opening_connection') }}
         </template>
       </n-spin>
     </n-card>

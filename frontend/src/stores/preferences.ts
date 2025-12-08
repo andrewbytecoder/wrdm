@@ -18,6 +18,7 @@ interface GeneralPreferences {
     useSysProxy: boolean
     useSysProxyHttp: boolean
     checkUpdate: boolean
+    navMenuWidth: number
 }
 
 interface EditorPreferences {
@@ -74,6 +75,7 @@ const usePreferencesStore = defineStore('preferences', {
             useSysProxy: false,
             useSysProxyHttp: false,
             checkUpdate: false,
+            navMenuWidth: 300,
         },
         editor: {
             font: '',
@@ -214,6 +216,10 @@ const usePreferencesStore = defineStore('preferences', {
                 return true
             }
             return false
+        },
+
+        setNavWidth(width: number): void {
+            this.general.navMenuWidth = width
         },
     },
 })
