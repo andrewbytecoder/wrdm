@@ -37,10 +37,11 @@ interface Preferences {
   [key: string]: any
 }
 
+const prefStore = usePreferencesStore()
 const i18n = useI18n()
 
 onMounted(async () => {
-    const prefStore = usePreferencesStore()
+    await prefStore.loadFontList()
     await prefStore.loadPreferences()
     await nextTick(() => {
         i18n.locale.value = get(prefStore.general, 'language', 'en')
@@ -83,7 +84,7 @@ const dragging = computed<boolean>(() => {
 
 <template>
   <!-- app content-->
-  <div id="app-container" :class="{ dragging }" class="flex-box-h">
+  <div id="app-container" :class="{ dragging }" class="flex-box-h" :style="prefStore.generalFont">
 
 <!--    v-model定义的数据在子组件中能通过 @update:value事件触发值 更新-->
 <!--    导航栏中选择具体的图标，然后更新 nav 根据nav然后触发下面显示面板显示不同的界面-->

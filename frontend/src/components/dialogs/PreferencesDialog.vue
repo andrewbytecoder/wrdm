@@ -30,14 +30,6 @@ interface EditorForm {
   fontSize: number
 }
 
-
-const fontOption: FontOption[] = [
-  {
-    label: 'JetBrains Mono',
-    value: 'JetBrains Mono',
-  },
-]
-
 const editorForm = reactive<EditorForm>({
   font: '',
   fontSize: 14,
@@ -49,13 +41,24 @@ const formLabelWidth = '80px'
 const dialogStore = useDialog()
 const i18n = useI18n()
 const message = useMessage()
-
+const loading = ref(false)
 
 watch(
     () => dialogStore.preferencesDialogVisible,
-    (visible) => {
+    async (visible) => {
       if (visible) {
-        prefStore.loadPreferences()
+          try {
+            loading.value = true
+            tab.value = 'general'
+            await prefStore.loadFontList()
+            await prefStore.loadPreferences()
+            prevPreferences.value = {
+              general: prefStore.general,
+              editor: prefStore.editor,
+            }
+          } finally {
+            loading.value = false
+          }
       }
     }
 )
@@ -74,16 +77,9 @@ watch(
     (lang) => (i18n.locale.value = lang)
 )
 
-watch(
-    () => prefStore.general.font,
-    (font) => {}
-)
-
-
 const onClose = () => {
+  prefStore.resetToLastPreferences()
   dialogStore.closePreferencesDialog()
-  // restore to old preferences
-  prefStore.restorePreferences()
 }
 </script>
 
@@ -115,7 +111,7 @@ const onClose = () => {
             />
           </n-form-item>
           <n-form-item :label="$t('font')" required>
-            <n-select v-model:value="prefStore.general.font" :options="fontOption" filterable />
+            <n-select v-model:value="prefStore.general.font" :options="prefStore.fontOption" filterable />
           </n-form-item>
           <n-form-item :label="$t('font_size')">
             <n-input-number v-model:value="prefStore.general.fontSize" :max="65535" :min="1" />
@@ -146,11 +142,11 @@ const onClose = () => {
             label-align="right"
             label-placement="left"
         >
-          <n-form-item :label="$t('font')" :label-width="formLabelWidth" required>
-            <n-select v-model="prefStore.editor.font" :options="fontOption" filterable />
+          <n-form-item :label="$t('font')" required>
+            <n-select v-model:value="prefStore.editor.font" :options="prefStore.fontOption" filterable />
           </n-form-item>
-          <n-form-item :label="$t('font_size')" :label-width="formLabelWidth">
-            <n-input-number v-model="prefStore.editor.fontSize" :max="65535" :min="1" />
+          <n-form-item :label="$t('font_size')" >
+            <n-input-number v-model:value="prefStore.editor.fontSize" :max="65535" :min="1" />
           </n-form-item>
         </n-form>
       </n-tab-pane>

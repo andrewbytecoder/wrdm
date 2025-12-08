@@ -3,6 +3,7 @@ module github.com/andrewbytecoder/wrdm
 go 1.23
 
 require (
+	github.com/adrg/sysfont v0.1.2
 	github.com/bytedance/sonic v1.14.2
 	github.com/google/go-cmp v0.7.0
 	github.com/redis/go-redis/v9 v9.16.0
@@ -12,6 +13,8 @@ require (
 )
 
 require (
+	github.com/adrg/strutil v0.2.2 // indirect
+	github.com/adrg/xdg v0.3.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect

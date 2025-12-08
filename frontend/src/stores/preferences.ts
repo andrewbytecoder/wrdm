@@ -1,7 +1,14 @@
 import { defineStore } from 'pinia'
 import { lang } from '../langs'
-import { camelCase, isObject, map, set, snakeCase, split } from 'lodash'
-import { GetPreferences, RestorePreferences, SetPreferences } from '../../wailsjs/go/services/preferencesService'
+import { camelCase, clone, find, isEmpty, isObject, map, set, snakeCase, split } from 'lodash'
+import {
+    GetFontList,
+    GetPreferences,
+    RestorePreferences,
+    SetPreferences,
+} from '../../wailsjs/go/services/preferencesService'
+import { useI18n } from 'vue-i18n'
+
 
 // 定义状态类型
 interface GeneralPreferences {
@@ -18,9 +25,22 @@ interface EditorPreferences {
     fontSize: number
 }
 
+interface FontItem {
+    name: string
+    path: string
+}
+
+interface FontOptions {
+    value: string
+    label: string
+    path: string
+}
+
 interface PreferencesState {
     general: GeneralPreferences
     editor: EditorPreferences
+    lastPref: Record<string, any>,
+    fontList: FontItem[],
 }
 
 // 定义语言选项类型
@@ -59,6 +79,8 @@ const usePreferencesStore = defineStore('preferences', {
             font: '',
             fontSize: 14,
         },
+        lastPref: {},
+        fontList: [],
     }),
     getters: {
         getSeparator(): string {
@@ -75,7 +97,38 @@ const usePreferencesStore = defineStore('preferences', {
                 label: `${value['lang_name']}`,
             }))
         },
+
+        fontOption(): FontOptions[] {
+            const i18n = useI18n()
+            const option = map(this.fontList, (font: FontItem):FontOptions => ({
+                value: font.name,
+                label: font.name,
+                path: font.path,
+            }))
+            option.splice(0, 0, {
+                value: '',
+                label: i18n.t('none'),
+                path: '',
+            })
+            return option
+        },
+
+        generalFont(): Record<string, string> {
+            const fontStyle: Record<string, string> = {
+                fontSize: this.general.fontSize + 'px',
+            }
+            if (!isEmpty(this.general.font) && this.general.font !== 'none') {
+                const font = find(this.fontList, { name: this.general.font })
+                if (font != null) {
+                    fontStyle['fontFamily'] = `${font.name}`
+                }
+            }
+            return fontStyle
+        }
+
     },
+
+
     actions: {
         _applyPreferences(data: Record<string, any>): void {
             for (const key in data) {
@@ -91,8 +144,24 @@ const usePreferencesStore = defineStore('preferences', {
         async loadPreferences(): Promise<void> {
             const resp: PreferencesResponse = await GetPreferences()
             if (resp.success && resp.data) {
+                this.lastPref = clone(resp.data)
                 this._applyPreferences(resp.data)
             }
+        },
+
+        /**
+         * load system font list
+         * @returns {Promise<string[]>}
+         */
+        async loadFontList(): Promise<FontItem[]> {
+            const { success, data } = await GetFontList()
+            if (success) {
+                const { fonts = [] } = data
+                this.fontList = fonts
+            } else {
+                this.fontList = []
+            }
+            return this.fontList
         },
 
         /**
@@ -104,7 +173,8 @@ const usePreferencesStore = defineStore('preferences', {
                 const result: Record<string, any> = {}
                 for (const key in obj) {
                     if (isObject(obj[key])) {
-                        // TODO: perform sub object
+                        const subResult = obj2Map(`${prefix}.${snakeCase(key)}`, obj[key])
+                        Object.assign(result, subResult)
                     } else {
                         result[`${prefix}.${snakeCase(key)}`] = obj[key]
                     }
@@ -120,6 +190,16 @@ const usePreferencesStore = defineStore('preferences', {
 
             await SetPreferences(pf)
             return true
+        },
+
+        /**
+         * reset to last loaded preferences
+         * @returns {Promise<void>}
+         */
+        async resetToLastPreferences(): Promise<void> {
+            if (!isEmpty(this.lastPref)) {
+                this._applyPreferences(this.lastPref)
+            }
         },
 
         /**

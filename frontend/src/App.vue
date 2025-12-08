@@ -7,8 +7,8 @@ import SetTtlDialog from './components/dialogs/SetTtlDialog.vue'
 //  语言高亮配置
 import hljs from 'highlight.js/lib/core'
 import json from 'highlight.js/lib/languages/json'
-import { NMessageProvider, NConfigProvider,GlobalThemeOverrides, NDialogProvider } from 'naive-ui'
 import plaintext from 'highlight.js/lib/languages/plaintext'
+import { NMessageProvider, NConfigProvider,GlobalThemeOverrides, NDialogProvider } from 'naive-ui'
 import AddFieldsDialog from './components/dialogs/AddFieldsDialog.vue'
 import AppContent from "./AppContent.vue";
 import GroupDialog from './components/dialogs/GroupDialog.vue'
