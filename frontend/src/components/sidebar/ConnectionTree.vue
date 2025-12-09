@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import useDialogStore from '../../stores/dialog'
-import { h, nextTick, onMounted, reactive, ref } from 'vue'
+import { h, nextTick, reactive, ref, watch } from 'vue'
 import useConnectionStore,  { DatabaseItem } from '../../stores/connections'
 import { NIcon, useDialog, useMessage, TreeSelectOption, TreeOption, TreeDropInfo  } from 'naive-ui'
 import { ConnectionType } from '../../consts/connection_type'
 import ToggleFolder from '../icons/ToggleFolder.vue'
 import ToggleServer from '../icons/ToggleServer.vue'
-import { debounce, indexOf, throttle } from 'lodash'
+import { debounce, indexOf, size, split } from 'lodash'
 import Config from '../icons/Config.vue'
 import Delete from '../icons/Delete.vue'
 import Unlink from '../icons/Unlink.vue'
@@ -50,6 +50,19 @@ const message = useMessage()
 
 const expandedKeys = ref<string[]>([])
 const selectedKeys = ref<string[]>([])
+
+
+watch(selectedKeys, () => {
+  const key = selectedKeys.value[0]
+  // try remove group name
+  const kparts = split(key, '/')
+  const len = size(kparts)
+  if (len > 1) {
+    connectionStore.selectedServer = kparts[len - 1]
+  } else {
+    connectionStore.selectedServer = selectedKeys.value[0]
+  }
+})
 
 // 出来的数据是引用 ref类型，如果在js中需要进行解引用
 // 用于辅助 v-model进行数据解析

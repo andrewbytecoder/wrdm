@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import useDialogStore from '../../stores/dialog'
-import { NIcon } from 'naive-ui'
+import { NIcon, useThemeVars } from 'naive-ui'
 import AddGroup from '../icons/AddGroup.vue'
 import AddLink from '../icons/AddLink.vue'
 import ConnectionTree from './ConnectionTree.vue'
@@ -11,7 +11,7 @@ import useConnectionStore from '../../stores/connections.js'
 import { ref } from 'vue'
 import { useI18n } from "vue-i18n";
 
-
+const themeVars = useThemeVars()
 const dialogStore = useDialogStore()
 const connectionStore = useConnectionStore()
 
@@ -37,7 +37,6 @@ const t = useI18n().t
     <div class="nav-pane-bottom flex-box-h">
       <IconButton
           :icon="AddLink"
-          color="#555"
           size="20"
           stroke-width="4"
           tTooltip="new_conn"
@@ -45,7 +44,6 @@ const t = useI18n().t
       />
       <IconButton
           :icon="AddGroup"
-          color="#555"
           size="20"
           stroke-width="4"
           tTooltip="new_group"
@@ -54,7 +52,6 @@ const t = useI18n().t
       <icon-button
           :disabled="!connectionStore.anyConnectionOpened"
           :icon="Unlink"
-          color="#555"
           size="20"
           stroke-width="4"
           t-tooltip="disconnect_all"
@@ -81,4 +78,10 @@ const t = useI18n().t
 <!--  }-->
 <!--}-->
 <!--</style>-->
-<style lang="scss" scoped></style>
+
+<style scoped lang="scss">
+.nav-pane-bottom {
+  color: v-bind('themeVars.iconColor');
+  border-top: v-bind('themeVars.borderColor') 1px solid;
+}
+</style>

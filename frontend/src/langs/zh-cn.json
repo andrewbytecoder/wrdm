@@ -105,6 +105,10 @@
   "score": "分值",
   "order_no": "序号",
   "preferences": "偏好设置",
+  "theme": "主题",
+  "theme_light": "浅色",
+  "theme_dark": "深色",
+  "theme_auto": "自动",
   "language": "语言",
   "font": "字体",
   "font_size": "字体尺寸",
@@ -132,5 +136,14 @@
   "log": "日志",
   "about": "关于",
   "help": "帮助",
-  "check_update": "检查更新..."
+  "check_update": "检查更新...",
+  "auto_refresh": "自动刷新",
+  "uptime": "运行时间",
+  "connected_clients": "已连客户端",
+  "total_keys": "键总数",
+  "memory_used": "内存使用",
+  "unit_day": "天",
+  "unit_hour": "小时",
+  "unit_minute": "分钟",
+  "all_info": "所有信息"
 }

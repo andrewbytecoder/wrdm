@@ -45,7 +45,12 @@ import {
     NLog,
     NDynamicInput,
     NDataTable,
-    NPopconfirm
+    NPopconfirm,
+    NStatistic,
+    NSwitch,
+    NGlobalStyle,
+    NGi,
+    NGrid,
 } from "naive-ui";
 
 import { createI18n } from 'vue-i18n'
@@ -100,6 +105,11 @@ app.component('NLog', NLog)
 app.component('NDynamicInput', NDynamicInput)
 app.component('NDataTable', NDataTable)
 app.component('NPopconfirm', NPopconfirm)
+app.component('NStatistic', NStatistic)
+app.component('NSwitch', NSwitch)
+app.component('NGlobalStyle', NGlobalStyle)
+app.component('NGi', NGi)
+app.component('NGrid', NGrid)
 
 
 

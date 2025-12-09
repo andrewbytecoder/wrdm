@@ -216,6 +216,27 @@ func (c *ConnectionService) OpenConnection(name string) ([]types.ConnectionDB, e
 	return dbs, nil
 }
 
+func (c *ConnectionService) ServerInfo(name string) types.JSResp {
+	rdb, ctx, err := c.getRedisClient(name, 0)
+	if err != nil {
+		return types.JSResp{
+			Msg: err.Error(),
+		}
+	}
+
+	// get database info
+	res, err := rdb.Info(ctx).Result()
+	if err != nil {
+		return types.JSResp{
+			Msg: err.Error(),
+		}
+	}
+	return types.JSResp{
+		Data:    c.parseInfo(res),
+		Success: true,
+	}
+}
+
 // CloseConnection close redis server connection
 func (c *ConnectionService) CloseConnection(name string) bool {
 	item, ok := c.connMap[name]

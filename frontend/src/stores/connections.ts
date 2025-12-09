@@ -19,6 +19,7 @@ import {
     SaveConnection,
     SaveSortedConnection,
     ScanKeys,
+    ServerInfo,
     SetHashValue,
     SetKeyTTL,
     SetKeyValue,
@@ -116,6 +117,8 @@ interface UpdateZSetValueResponse {
 interface ConnectionState {
     groups: string[], // all group name
     connections: ConnectionItem[]
+    selectedServer: string
+    serverStats: Record<string, string>,
     databases: Record<string, DatabaseItem[]>
     nodeMap: Record<string, any>, // all node in opened connections group by server+db and key+type
 }
@@ -136,6 +139,8 @@ const useConnectionStore = defineStore('connections', {
     state: (): ConnectionState => ({
         groups: [], // all group name set
         connections: [], // all connections
+        selectedServer: '', // current selected server
+        serverStats: {}, // current server status info
         databases: {}, // all databases in opened connections group by server name
         nodeMap: {}, // all node in opened connections group by server+db and key+type
     }),
@@ -486,6 +491,24 @@ const useConnectionStore = defineStore('connections', {
             dbs[db].children = undefined
             dbs[db].isLeaf = false
             delete this.nodeMap[`${connName}#${db}`]
+        },
+
+        /**
+         *
+         * @param server
+         * @returns {Promise<{}>}
+         */
+        async getServerInfo(server: string): Promise<Record<string,  string>> {
+            // 获取 server info 信息
+            try {
+                const { success, data } = await ServerInfo(server)
+                if (success) {
+                    this.serverStats[server] = data
+                    return data
+                }
+            } finally {
+            }
+            return {}
         },
 
         /**

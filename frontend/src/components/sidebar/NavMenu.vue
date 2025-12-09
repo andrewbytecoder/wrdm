@@ -137,7 +137,7 @@ const openGithub = () => {
         :collapsed="true"
         :collapsed-icon-size="iconSize"
         :options="menuOptions"
-    ></n-menu>
+    />
 <!--  用来撑满中间空白区域-->
     <div class="flex-item-expand" ></div>
     <div class="nav-menu-item flex-box-v">
@@ -153,7 +153,7 @@ const openGithub = () => {
       >
         <icon-button :icon="Config" :size="iconSize" class="nav-menu-button" />
       </n-dropdown>
-      <icon-button :icon="Github" :size="iconSize" class="nav-menu-button" @click="openGithub"></icon-button>
+      <icon-button :icon="Github" :size="iconSize" class="nav-menu-button" @click="openGithub"/>
     </div>
   </div>
 </template>
@@ -162,7 +162,7 @@ const openGithub = () => {
 #app-nav-menu {
   //width: 60px;
   height: 100vh;
-  border-right: var(--border-color) solid 1px;
+  border-right: v-bind('themeVars.borderColor') solid 1px;
 
   .nav-menu-item {
     align-items: center;

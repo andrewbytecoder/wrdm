@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { NIcon, useMessage } from 'naive-ui'
-import AddGroup from '../icons/AddGroup.vue'
+import { useMessage, useThemeVars } from 'naive-ui'
 import AddLink from '../icons/AddLink.vue'
 import BrowserTree from './BrowserTree.vue'
 import IconButton from '../common/IconButton.vue'
-import Filter from '../icons/Filter.vue'
 import useTabStore from '../../stores/tab.js'
 import { computed } from 'vue'
 import { get } from 'lodash'
@@ -14,8 +12,9 @@ import useDialogStore from '../../stores/dialog.js'
 import { useConfirmDialog } from '../../utils/confirm_dialog.js'
 import { useI18n } from 'vue-i18n'
 import useConnectionStore from '../../stores/connections.js'
-const dialogStore = useDialogStore()
 
+const themeVars = useThemeVars()
+const dialogStore = useDialogStore()
 const tabStore = useTabStore()
 const currentName = computed((): string => get(tabStore.currentTab, 'name', ''))
 
@@ -62,7 +61,6 @@ const onRefresh = () => {
         <div class="nav-pane-bottom flex-box-h">
             <icon-button
                 :icon="AddLink"
-                color="#555"
                 size="20"
                 stroke-width="4"
                 t-tooltip="new_key"
@@ -70,7 +68,6 @@ const onRefresh = () => {
             />
             <icon-button
                 :icon="Refresh"
-                color="#555"
                 size="20"
                 stroke-width="4"
                 t-tooltip="reload"
@@ -80,7 +77,6 @@ const onRefresh = () => {
             <icon-button
                 :disabled="currentSelect.key == null"
                 :icon="Delete"
-                color="#555"
                 size="20"
                 stroke-width="4"
                 t-tooltip="remove_key"
@@ -95,6 +91,9 @@ const onRefresh = () => {
     </div>
 </template>
 
-<style lang="scss" scoped>
-
+<style scoped lang="scss">
+.nav-pane-bottom {
+  color: v-bind('themeVars.iconColor');
+  border-top: v-bind('themeVars.borderColor') 1px solid;
+}
 </style>

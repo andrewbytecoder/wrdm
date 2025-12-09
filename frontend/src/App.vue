@@ -13,18 +13,32 @@ import AddFieldsDialog from './components/dialogs/AddFieldsDialog.vue'
 import AppContent from "./AppContent.vue";
 import GroupDialog from './components/dialogs/GroupDialog.vue'
 import DeleteKeyDialog from './components/dialogs/DeleteKeyDialog.vue'
+import { computed, onBeforeMount, ref } from 'vue'
+import { get } from 'lodash'
+import usePreferencesStore from './stores/preferences.js'
+import useConnectionStore from './stores/connections.js'
+import { useI18n } from 'vue-i18n'
+import { darkTheme, lightTheme, useOsTheme } from 'naive-ui'
+
 
 hljs.registerLanguage('json', json)
 hljs.registerLanguage('plaintext', plaintext)
 
+
+/**
+ *
+ * @type import('naive-ui').GlobalThemeOverrides
+ */
 const themeOverrides = {
   common: {
-    // primaryColor: '#409EFF',
+    primaryColor: '#D33A31',
+    primaryColorHover: '#FF6B6B',
+    primaryColorPressed: '#cc534c',
+    primaryColorSuppl: '#FF6B6B',
     borderRadius: '4px',
     borderRadiusSmall: '3px',
-    fontFamily: `"Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-  "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue"`,
     lineHeight: 1.5,
+    scrollbarWidth: '8px',
   },
   Tag: {
     // borderRadius: '3px'
@@ -36,59 +50,74 @@ const themeOverrides = {
   }
 } as any
 
+
+const prefStore = usePreferencesStore()
+const connectionStore = useConnectionStore()
+const i18n = useI18n()
+const initializing = ref(false)
+onBeforeMount(async () => {
+  try {
+    initializing.value = true
+    await prefStore.loadPreferences()
+    i18n.locale.value = get(prefStore.general, 'language', 'en')
+    await prefStore.loadFontList()
+    await connectionStore.initConnections(false)
+  } finally {
+    initializing.value = false
+  }
+})
+
+const osTheme = useOsTheme()
+//  子组件中变更这里也会跟着变更
+const theme = computed(() => {
+  if (prefStore.general.theme === 'auto') {
+    if (osTheme.value === 'dark') {
+      return darkTheme
+    }
+  } else if (prefStore.general.theme === 'dark') {
+    return darkTheme
+  }
+  return lightTheme
+})
+
 </script>
 
+
 <template>
-  <!-- 1. 最外层：n-config-provider -->
-  <n-config-provider :hljs="hljs" :inline-theme-disabled="true" :theme-overrides="themeOverrides" class="fill-height">
-
-    <!-- 2. 第二层：n-message-provider (包裹所有需要使用 useMessage 的组件) -->
+  <n-config-provider
+      :hljs="hljs"
+      :inline-theme-disabled="true"
+      :theme="theme"
+      :theme-overrides="themeOverrides"
+      class="fill-height"
+  >
+    <n-global-style />
     <n-message-provider>
-
-      <!-- 3. 第三层：n-dialog-provider -->
       <n-dialog-provider>
+        <n-spin v-show="initializing" :theme-overrides="{ opacitySpinning: 0 }">
+          <template #description>{{ $t('launching') }}</template>
+          <div id="launch-container" />
+        </n-spin>
+        <app-content v-if="!initializing" />
 
-        <!-- 4. 你的应用主内容 -->
-        <AppContent />
-
-        <!-- 5. 所有全局的模态对话框 -->
-        <ConnectionDialog />
-        <GroupDialog />
-        <NewKeyDialog />
-        <AddFieldsDialog />
-        <RenameKeyDialog />
-        <DeleteKeyDialog />
-        <SetTtlDialog />
-        <PreferencesDialog />
-
+        <!-- top modal dialogs -->
+        <connection-dialog />
+        <group-dialog />
+        <new-key-dialog />
+        <add-fields-dialog />
+        <rename-key-dialog />
+        <delete-key-dialog />
+        <set-ttl-dialog />
+        <preferences-dialog />
       </n-dialog-provider>
-
     </n-message-provider>
-
   </n-config-provider>
 </template>
 
 
-
-<!--<template>-->
-<!--  <n-config-provider>-->
-<!--    <n-dialog-provider>-->
-<!--      <n-notification-provider>-->
-<!--        <n-message-provider>-->
-<!--          &lt;!&ndash; 您的应用内容 &ndash;&gt;-->
-<!--          <AppContent />-->
-
-<!--          &lt;!&ndash; 5. 所有全局的模态对话框 &ndash;&gt;-->
-<!--          <NewConnDialog />-->
-<!--          <NewKeyDialog />-->
-<!--          <AddFieldsDialog />-->
-<!--          <RenameKeyDialog />-->
-<!--          <SetTtlDialog />-->
-<!--          <PreferencesDialog />-->
-<!--        </n-message-provider>-->
-<!--      </n-notification-provider>-->
-<!--    </n-dialog-provider>-->
-<!--  </n-config-provider>-->
-<!--</template>-->
-
-<style lang="scss"></style>
+<style lang="scss">
+#launch-container {
+  width: 100vw;
+  height: 100vh;
+}
+</style>

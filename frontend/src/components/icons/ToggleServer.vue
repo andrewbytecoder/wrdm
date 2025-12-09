@@ -9,7 +9,6 @@ const emit = defineEmits<{
 // 定义 props 类型
 interface Props {
   modelValue?: boolean
-  clickToggle?: boolean
   strokeWidth?: number | string
   fillColor?: string
   size?: number | string
@@ -17,34 +16,14 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: false,
-  clickToggle: false,
   strokeWidth: 3,
   fillColor: '#dc423c',
   size: 24
 })
-
-// 处理切换逻辑
-const onToggle = () => {
-  if (props.clickToggle) {
-    emit('update:modelValue', !props.modelValue)
-  }
-}
-
-// 计算当前是否激活状态
-const isActive = computed(() => props.modelValue)
 </script>
 
 <template>
-  <svg
-      v-if="isActive"
-      :height="props.size"
-      :width="props.size"
-      fill="none"
-      viewBox="0 0 48 48"
-      xmlns="http://www.w3.org/2000/svg"
-      @click="onToggle"
-      style="cursor: pointer;"
-  >
+  <svg v-if="props.modelValue" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
     <path
         :stroke="props.fillColor"
         :stroke-width="props.strokeWidth"
@@ -83,16 +62,7 @@ const isActive = computed(() => props.modelValue)
         stroke-linejoin="round"
     />
   </svg>
-  <svg
-      v-else
-      :height="props.size"
-      :width="props.size"
-      fill="none"
-      viewBox="0 0 48 48"
-      xmlns="http://www.w3.org/2000/svg"
-      @click="onToggle"
-      style="cursor: pointer;"
-  >
+  <svg v-else fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
     <path
         :stroke-width="props.strokeWidth"
         d="M41 4H7C5.34315 4 4 5.34315 4 7V41C4 42.6569 5.34315 44 7 44H41C42.6569 44 44 42.6569 44 41V7C44 5.34315 42.6569 4 41 4Z"
