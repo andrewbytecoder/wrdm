@@ -76,7 +76,7 @@ const dragging = computed<boolean>(() => {
 
 <template>
   <!-- app content-->
-  <div id="app-container" :class="{ dragging }" class="flex-box-h" :style="prefStore.generalFont">
+  <div id="app-content-wrapper" :class="{ dragging }" class="flex-box-h" :style="prefStore.generalFont">
     <nav-menu v-model:value="tabStore.nav" :width="data.navMenuWidth" />
     <!-- structure page-->
     <div v-show="tabStore.nav === 'structure'" class="flex-box-h flex-item-expand">
@@ -125,7 +125,7 @@ const dragging = computed<boolean>(() => {
 </template>
 
 <style scoped lang="scss">
-#app-container {
+#app-content-wrapper {
   height: 100%;
   overflow: hidden;
   border-top: v-bind('themeVars.borderColor') 1px solid;
@@ -139,16 +139,18 @@ const dragging = computed<boolean>(() => {
   #app-side {
     //overflow: hidden;
     height: 100%;
+    background-color: v-bind('themeVars.tabColor');
 
     .resize-divider {
       //height: 100%;
       width: 2px;
       border-left-width: 5px;
-      background-color: v-bind('themeVars.dividerColor');
+      background-color: v-bind('themeVars.tabColor');
     }
 
     .resize-divider-hover {
       width: 5px;
+      background-color: v-bind('themeVars.borderColor');
     }
 
     .resize-divider-drag {

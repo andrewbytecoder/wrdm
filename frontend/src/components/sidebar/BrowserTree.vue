@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { h, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
 import { ConnectionType } from '../../consts/connection_type'
 import { NIcon, useDialog, useMessage, TreeOption, DropdownOption } from 'naive-ui'
 import Key from '../icons/Key.vue'
 import ToggleDb from '../icons/ToggleDb.vue'
-import { indexOf, isEmpty } from 'lodash'
+import { get, indexOf, isEmpty } from 'lodash'
 import { useI18n } from 'vue-i18n'
 import Refresh from '../icons/Refresh.vue'
 import CopyLink from '../icons/CopyLink.vue'
@@ -17,6 +17,18 @@ import { ClipboardSetText } from '../../../wailsjs/runtime'
 import useConnectionStore from '../../stores/connections'
 import { renderIcon } from '../../utils/render_model'
 import { useConfirmDialog } from '../../utils/confirm_dialog.js'
+import ToggleServer from '../icons/ToggleServer.vue'
+import Unlink from '../icons/Unlink.vue'
+
+
+interface Props {
+  server: string
+}
+
+
+const props = withDefaults(defineProps<Props>(), {
+  server: ''
+})
 
 // 当上面菜单打开的时候，将对应的数据都保存一份，这样在弹出的菜单中能获取到数据
 interface DropDownMenuParam {
@@ -41,10 +53,22 @@ interface ExtendedTreeOption extends TreeOption {
 const i18n = useI18n()
 const loading = ref(false)
 const loadingConnections = ref(false)
-const expandedKeys = ref<string[]>([])
-const selectedKeys = ref<number[]>([])
+const expandedKeys = ref<(string)[]>([props.server])
+const selectedKeys = ref<(string)[]>([props.server])
 const connectionStore = useConnectionStore()
 const dialogStore = useDialogStore()
+
+const data = computed(() => {
+  const dbs = get(connectionStore.databases, props.server, [])
+  return [
+    {
+      key: props.server,
+      label: props.server,
+      type: ConnectionType.Server,
+      children: dbs,
+    },
+  ]
+})
 
 const dropDownMenuParam = reactive<DropDownMenuParam>({
   show: false,
@@ -61,6 +85,21 @@ interface MenuOptions {
 
 //  Record<number, Function> 定义一个键值对，key为number，value为Function
 const menuOptions: MenuOptions = {
+  [ConnectionType.Server]: () => {
+    console.log('open server context')
+    return [
+      {
+        key: 'server_reload',
+        label: i18n.t('reload'),
+        icon: renderIcon(Refresh),
+      },
+      {
+        key: 'server_close',
+        label: i18n.t('disconnect'),
+        icon: renderIcon(Unlink),
+      },
+    ]
+  },
   [ConnectionType.RedisDB]: ({opened}: TreeOption) => {
     if (opened) {
       return [
@@ -148,10 +187,6 @@ onMounted(async () => {
   }
 })
 
-const props = defineProps({
-  server: String,
-})
-
 const expandKey = (key: string) => {
   const idx = indexOf(expandedKeys.value, key)
   if (idx === -1) {
@@ -185,26 +220,38 @@ const onUpdateExpanded = (value: string[], option: TreeOption, meta: Meta) => {
 }
 
 
-const onUpdateSelectedKeys = (keys: number[], options: TreeOption[]) => {
-  if (!isEmpty(options)) {
-    // prevent load duplicate key
-    for (const node of options) {
-      if (node.type === ConnectionType.RedisValue) {
-        const { key, name, db, redisKey } = node
-        if (indexOf(selectedKeys.value, key) === -1) {
-          connectionStore.loadKeyValue(name as string, db as number, redisKey as string)
+const onUpdateSelectedKeys = (keys: string[], options: TreeOption[]) => {
+  try {
+    if (!isEmpty(options)) {
+      // prevent load duplicate key
+      for (const node of options) {
+        if (node.type === ConnectionType.RedisValue) {
+          const { key, db, redisKey } = node
+          if (indexOf(selectedKeys.value, key) === -1) {
+            connectionStore.loadKeyValue(props.server, db as number, redisKey as string)
+          }
+          return
         }
-        break
       }
+      // default is load blank key to display server status
+      connectionStore.loadKeyValue(props.server, 0, '')
     }
+  } finally {
+    selectedKeys.value = keys
   }
-
-  selectedKeys.value = keys
 }
 
 
 const renderPrefix = ({ option }: { option: TreeOption }) => {
   switch (option.type) {
+    case ConnectionType.Server:
+      return h(
+          NIcon,
+          { size: 20 },
+          {
+            default: () => h(ToggleServer, { modelValue: false }),
+          }
+      )
     case ConnectionType.RedisDB:
       return h(
           NIcon,
@@ -274,7 +321,7 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
         dropDownMenuParam.x = e.clientX
         dropDownMenuParam.y = e.clientY
         dropDownMenuParam.show = true
-        selectedKeys.value = [option.key as number]
+        selectedKeys.value = [option.key as string]
       })
     },
     // onMouseover() {
@@ -290,8 +337,8 @@ const onLoadTree = async (node: TreeOption) => {
     case ConnectionType.RedisDB:
       loading.value = true
       try {
-        if (typeof node.name === 'string' && typeof node.db === 'number') {
-          await connectionStore.openDatabase(node.name, node.db)
+        if (typeof node.server === 'string' && typeof node.db === 'number') {
+          await connectionStore.openDatabase(node.server, node.db)
         }
       } catch (e: any) {
         message.error(e.message)
@@ -314,34 +361,38 @@ const handleSelectContextMenu = (key: string) => {
   //  在选择的时候会更新 currentNode
   if (!dropDownMenuParam.currentNode) return
 
-  const { name, db, key: nodeKey, redisKey } = dropDownMenuParam.currentNode
+  const { db, key: nodeKey, redisKey } = dropDownMenuParam.currentNode
   switch (key) {
-      // case 'server_reload':
-      // case 'db_reload':
-      //     connectionStore.loadKeyValue()
-      //     break
+    case 'server_reload':
+      connectionStore.openConnection(props.server, true).then(() => {
+        message.success(i18n.t('reload_succ'))
+      })
+      break
+    case 'server_close':
+      connectionStore.closeConnection(props.server)
+      break
     case 'db_open':
       nextTick().then(() => expandKey(nodeKey as string))
       break
     case 'db_reload':
-      connectionStore.reopenDatabase(name as string, db as number)
+      connectionStore.reopenDatabase(props.server, db as number)
       break
     case 'db_newkey':
     case 'key_newkey':
-      dialogStore.openNewKeyDialog(redisKey as string, name as string, db as number)
+      dialogStore.openNewKeyDialog(redisKey as string, props.server, db as number)
       break
     case 'key_reload':
-      connectionStore.loadKeys(name as string, db as  number,   redisKey as string)
+      connectionStore.loadKeys(props.server, db as  number,   redisKey as string)
       break
     case 'value_reload':
-      connectionStore.loadKeyValue(name as string, db as number, redisKey as string)
+      connectionStore.loadKeyValue(props.server, db as number, redisKey as string)
       break
     case 'key_remove':
-      dialogStore.openDeleteKeyDialog(name as string, db as number, redisKey + ':*')
+      dialogStore.openDeleteKeyDialog(props.server, db as number, redisKey + ':*')
       break
     case 'value_remove':
       confirmDialog.warning(i18n.t('remove_tip', { name: redisKey }), () => {
-        connectionStore.deleteKey(name as string, db as number, redisKey as string).then((success) => {
+        connectionStore.deleteKey(props.server, db as number, redisKey as string).then((success) => {
           if (success) {
             message.success(i18n.t('delete_key_succ', { key: redisKey }))
           }
@@ -377,7 +428,7 @@ const handleOutsideContextMenu = () => {
       :block-node="true"
       :animated="false"
       :cancelable="false"
-      :data="connectionStore.databases[(props.server as String).toString()] || []"
+      :data="data"
       :expand-on-click="false"
       :expanded-keys="expandedKeys"
       :selected-keys="selectedKeys"

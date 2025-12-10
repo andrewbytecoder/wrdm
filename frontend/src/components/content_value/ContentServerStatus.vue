@@ -6,9 +6,7 @@ import Help from '../icons/Help.vue'
 import IconButton from '../common/IconButton.vue'
 import Filter from '../icons/Filter.vue'
 import { useI18n } from 'vue-i18n'
-import {FilterOptionValue} from "naive-ui/es/data-table/src/interface";
-import {nullLiteral} from "@babel/types";
-
+import Refresh from '../icons/Refresh.vue'
 
 interface ServerStatus {
   server: string
@@ -18,8 +16,9 @@ interface ServerStatus {
 
 const props = defineProps<ServerStatus>()
 
-const emit = defineEmits(['update:autoRefresh'])
+const emit = defineEmits(['update:autoRefresh', 'refresh'])
 
+const scrollRef = ref(null)
 const redisVersion = computed(() => {
   return get(props.info, 'redis_version', '')
 })
@@ -107,20 +106,46 @@ const onFilterInfo = (val: string) => {
 
 <template>
   <n-scrollbar>
-    <n-space vertical>
-      <n-card :theme-override1s="{ paddingMedium: '10px 20px 10px' }">
+    <n-space vertical ref="scrollRef">
+      <n-back-top :listen-to="scrollRef" />
+      <n-card>
         <template #header>
           {{ props.server }}
           <n-space inline size="small">
-            <n-tag v-if="redisVersion" type="primary" size="small">v{{ redisVersion }}</n-tag>
-            <n-tag v-if="redisMode" type="primary" size="small">{{ redisMode }}</n-tag>
-            <n-tag v-if="role" type="primary" size="small">{{ role }}</n-tag>
+            <n-tooltip v-if="redisVersion">
+              Redis Version
+              <template #trigger>
+                <n-tag type="primary" size="small">v{{ redisVersion }}</n-tag>
+              </template>
+            </n-tooltip>
+            <n-tooltip v-if="redisMode">
+              Mode
+              <template #trigger>
+                <n-tag type="primary" size="small">{{ redisMode }}</n-tag>
+              </template>
+            </n-tooltip>
+            <n-tooltip v-if="redisMode">
+              Role
+              <template #trigger>
+                <n-tag type="primary" size="small">{{ role }}</n-tag>
+              </template>
+            </n-tooltip>
           </n-space>
         </template>
         <template #header-extra>
-          <n-space inline size="small">
+          <n-space inline align="center">
             {{ $t('auto_refresh') }}
             <n-switch :value="props.autoRefresh" @update:value="(v: boolean) => emit('update:autoRefresh', v)" />
+            <n-tooltip>
+              {{ $t('refresh') }}
+              <template #trigger>
+                <n-button tertiary circle size="small" @click="emit('refresh')">
+                  <template #icon>
+                    <n-icon :component="Refresh" />
+                  </template>
+                </n-button>
+              </template>
+            </n-tooltip>
           </n-space>
         </template>
         <n-grid x-gap="5" style="min-width: 500px">
@@ -137,8 +162,8 @@ const onFilterInfo = (val: string) => {
           </n-gi>
           <n-gi :span="6">
             <n-statistic :value="totalKeys">
-              <template #label
-              >{{ $t('total_keys') }}
+              <template #label>
+                {{ $t('total_keys') }}
                 <n-icon :component="Help" />
               </template>
             </n-statistic>
@@ -152,7 +177,7 @@ const onFilterInfo = (val: string) => {
       </n-card>
       <n-card :title="$t('all_info')">
         <template #header-extra>
-          <n-input v-model:value="infoFilter" @update:value="onFilterInfo" placeholder="">
+          <n-input v-model:value="infoFilter" @update:value="onFilterInfo" placeholder="" clearable>
             <template #prefix>
               <icon-button :icon="Filter" size="18" />
             </template>

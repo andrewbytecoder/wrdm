@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { types } from '../../consts/support_redis_type'
 import ContentValueHash from '../content_value/ContentValueHash.vue'
 import ContentValueList from '../content_value/ContentValueList.vue'
@@ -13,8 +13,37 @@ import { useDialog } from 'naive-ui'
 import useConnectionStore from '../../stores/connections'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../../utils/confirm_dialog.js'
+import ContentServerStatus from '../content_value/ContentServerStatus.vue'
 
 //  主内容界面
+
+const serverInfo = ref({})
+const autoRefresh = ref(false)
+const serverName = computed(() => {
+  if (tabContent.value != null) {
+    return tabContent.value.name
+  }
+  return ''
+})
+const refreshInfo = async () => {
+  if (!isEmpty(serverName.value) && connectionStore.isConnected(serverName.value)) {
+    serverInfo.value = await connectionStore.getServerInfo(serverName.value)
+  }
+}
+
+let intervalId: number
+onMounted(() => {
+  refreshInfo()
+  intervalId = setInterval(() => {
+    if (autoRefresh.value) {
+      refreshInfo()
+    }
+  }, 5000)
+})
+
+onUnmounted(() => {
+  clearInterval(intervalId)
+})
 
 interface TabInfo {
   key: string
@@ -41,6 +70,15 @@ const tab = computed((): TabInfo[] =>
     }))
 )
 
+watch(
+    () => tabStore.nav,
+    (nav) => {
+      if (nav === 'browser') {
+        refreshInfo()
+      }
+    }
+)
+
 const tabContent = computed((): TabItem | null => {
   const tab = tabStore.currentTab
   if (tab == null) {
@@ -56,6 +94,14 @@ const tabContent = computed((): TabItem | null => {
     ttl: tab.ttl,
     value: tab.value
   }
+})
+
+const showServerStatus = computed(() => {
+  return tabContent.value == null || isEmpty(tabContent.value.key)
+})
+
+const showNonexists = computed(() => {
+  return tabContent.value?.value == null
 })
 
 const onUpdateValue = (tabIndex: number) => {
@@ -113,10 +159,16 @@ const onCloseTab = (tabIndex: number) => {
     </n-tabs>
     <!-- TODO: add loading status -->
 
-    <div v-if="tabContent == null || isEmpty(tabContent.key)" class="flex-item-expand flex-box-v">
-      <n-empty :description="$t('empty_tab_content')" class="empty-content" />
+    <div v-if="showServerStatus" class="content-container flex-item-expand flex-box-v">
+      <!-- select nothing or select server node, display server status -->
+      <content-server-status
+          v-model:auto-refresh="autoRefresh"
+          :server="serverName"
+          :info="serverInfo"
+          @refresh="refreshInfo"
+      />
     </div>
-    <div v-else-if="tabContent.value == null" class="flex-item-expand flex-box-v">
+    <div v-else-if="showNonexists" class="content-container flex-item-expand flex-box-v">
       <n-empty :description="$t('nonexist_tab_content')" class="empty-content">
         <template #extra>
           <n-button @click="onReloadKey">{{ $t('reload') }}</n-button>
@@ -125,13 +177,13 @@ const onCloseTab = (tabIndex: number) => {
     </div>
     <component
         v-else
-        :is="valueComponents[tabContent.type]"
-        :db="tabContent.db"
-        :key-path="tabContent.key"
-        :key-type="tabContent.type"
-        :name="tabContent.name"
-        :ttl="tabContent.ttl"
-        :value="tabContent.value"
+        :is="valueComponents[tabContent?.type as string]"
+        :db="tabContent?.db"
+        :key-path="tabContent?.key"
+        :key-type="tabContent?.type"
+        :name="tabContent?.name"
+        :ttl="tabContent?.ttl"
+        :value="tabContent?.value"
     />
   </div>
 </template>
@@ -139,6 +191,12 @@ const onCloseTab = (tabIndex: number) => {
 <style lang="scss" scoped>
 //@import "content";
 @use "content";
+
+.content-container {
+  padding: 5px;
+  box-sizing: border-box;
+}
+
 //.tab-item {
 //    gap: 5px;
 //    padding: 0 5px 0 10px;

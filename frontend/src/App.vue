@@ -95,10 +95,9 @@ const theme = computed(() => {
     <n-message-provider>
       <n-dialog-provider>
         <n-spin v-show="initializing" :theme-overrides="{ opacitySpinning: 0 }">
-          <template #description>{{ $t('launching') }}</template>
           <div id="launch-container" />
         </n-spin>
-        <app-content v-if="!initializing" />
+        <app-content v-if="!initializing" class="flex-item-expand"  />
 
         <!-- top modal dialogs -->
         <connection-dialog />

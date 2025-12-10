@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { endsWith, findIndex, get, isEmpty, last, size, split, uniq } from 'lodash'
+import { endsWith, findIndex, get, isEmpty, size, split, uniq } from 'lodash'
 import {
     AddHashField,
     AddListItem,
@@ -40,7 +40,7 @@ const separator = ':'
 export interface DatabaseItem {
     key: string
     label: string
-    name: string
+    name?: string
     type: number
     db?: number
     keys: number
@@ -117,7 +117,6 @@ interface UpdateZSetValueResponse {
 interface ConnectionState {
     groups: string[], // all group name
     connections: ConnectionItem[]
-    selectedServer: string
     serverStats: Record<string, string>,
     databases: Record<string, DatabaseItem[]>
     nodeMap: Record<string, any>, // all node in opened connections group by server+db and key+type
@@ -139,7 +138,6 @@ const useConnectionStore = defineStore('connections', {
     state: (): ConnectionState => ({
         groups: [], // all group name set
         connections: [], // all connections
-        selectedServer: '', // current selected server
         serverStats: {}, // current server status info
         databases: {}, // all databases in opened connections group by server name
         nodeMap: {}, // all node in opened connections group by server+db and key+type
@@ -373,23 +371,28 @@ const useConnectionStore = defineStore('connections', {
                 // throw new Error(msg)
                 return false
             }
-
+            const dbs = this.databases[name]
+            for (const db of dbs) {
+                this.nodeMap[`${db.name}#${db.db}`]?.clear()
+            }
             delete this.databases[name]
+            delete this.serverStats[name]
             const tabStore = useTabStore()
             tabStore.removeTabByName(name)
             return true
         },
 
         /**
-         * Close all connection
+         * Close all connections
          * @returns {Promise<void>}
          */
-        async closeAllConnection() {
+        async closeAllConnection(): Promise<void> {
             for (const name in this.databases) {
                 await CloseConnection(name)
             }
 
             this.databases = {}
+            this.serverStats = {}
             const tabStore = useTabStore()
             tabStore.removeAllTab()
         },
@@ -490,7 +493,7 @@ const useConnectionStore = defineStore('connections', {
             const dbs = this.databases[connName]
             dbs[db].children = undefined
             dbs[db].isLeaf = false
-            delete this.nodeMap[`${connName}#${db}`]
+            this.nodeMap[`${connName}#${db}`]?.clear()
         },
 
         /**
@@ -513,36 +516,40 @@ const useConnectionStore = defineStore('connections', {
 
         /**
          * load redis key
-         * @param server
-         * @param db
-         * @param key
-         */
+         * * @param {string} server
+         *          * @param {number} db
+         *          * @param {string} [key] when key is null or blank, update tab to display normal content (blank content or server status)
+         *          */
         async loadKeyValue(server: string, db: number, key: string): Promise<void> {
             try {
-                const data = await GetKeyValue(server, db, key)
                 const tab = useTabStore()
-                if (data) {
-                    const { type, ttl, value } = data!
-                    tab.upsertTab({
-                        blank: false, name: "",
-                        server,
-                        db,
-                        type,
-                        ttl,
-                        key,
-                        value
-                    })
-                } else {
-                    tab.upsertTab({
-                        blank: false, name: "",
-                        server,
-                        db,
-                        type: 'none',
-                        ttl: -1,
-                        key,
-                        value: null
-                    })
+
+                if (!isEmpty(key)) {
+                    const data = await GetKeyValue(server, db, key)
+                    if (data) {
+                        const { type, ttl, value } = data!
+                        tab.upsertTab({
+                            blank: false, name: "",
+                            server,
+                            db,
+                            type,
+                            ttl,
+                            key,
+                            value
+                        })
+                        return
+                    }
                 }
+                //  请求失败插入空数据
+                tab.upsertTab({
+                    blank: false, name: "",
+                    server,
+                    db,
+                    type: 'none',
+                    ttl: -1,
+                    key,
+                    value: null
+                })
             } finally {
             }
         },
@@ -638,7 +645,6 @@ const useConnectionStore = defineStore('connections', {
             // construct tree node list, the format of item key likes 'server/db#type/key'
             const nodeMap = this.nodeMap[`${connName}#${db}`]
             const rootChildren = dbs[db].children
-            let count = 0
             for (const key of keys) {
                 const keyPart = split(key, separator)
                 // const prefixLen = size(keyPart) - 1
@@ -656,7 +662,6 @@ const useConnectionStore = defineStore('connections', {
                             selectedNode = {
                                 key: `${connName}/db${db}${nodeKey}`,
                                 label: keyPart[i],
-                                name: connName,
                                 db,
                                 keys: 0,
                                 redisKey: handlePath,
@@ -675,7 +680,6 @@ const useConnectionStore = defineStore('connections', {
                         const selectedNode = {
                             key: `${connName}/db${db}${nodeKey}`,
                             label: keyPart[i],
-                            name: connName,
                             db,
                             keys: 0,
                             redisKey: handlePath,
@@ -686,7 +690,6 @@ const useConnectionStore = defineStore('connections', {
                         children?.push(selectedNode)
                     }
                 }
-                console.log('count:', ++count)
             }
         },
 

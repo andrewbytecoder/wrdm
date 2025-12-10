@@ -51,19 +51,6 @@ const message = useMessage()
 const expandedKeys = ref<string[]>([])
 const selectedKeys = ref<string[]>([])
 
-
-watch(selectedKeys, () => {
-  const key = selectedKeys.value[0]
-  // try remove group name
-  const kparts = split(key, '/')
-  const len = size(kparts)
-  if (len > 1) {
-    connectionStore.selectedServer = kparts[len - 1]
-  } else {
-    connectionStore.selectedServer = selectedKeys.value[0]
-  }
-})
-
 // 出来的数据是引用 ref类型，如果在js中需要进行解引用
 // 用于辅助 v-model进行数据解析
 const filterPattern = defineModel<string>('filterPattern')
