@@ -154,7 +154,7 @@ const onCloseTab = (tabIndex: number) => {
     >
 <!--      tab的具体内容-->
       <n-tab v-for="(t, i) in tab" :key="i" :name="i">
-        <n-ellipsis style="max-width: 100px">{{ t.label }}</n-ellipsis>
+                <n-ellipsis style="max-width: 150px">{{ t.label }}</n-ellipsis>
       </n-tab>
     </n-tabs>
     <!-- TODO: add loading status -->

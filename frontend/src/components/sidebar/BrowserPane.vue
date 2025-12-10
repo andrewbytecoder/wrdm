@@ -56,22 +56,34 @@ const onRefresh = () => {
 
 <template>
     <div class="nav-pane-container flex-box-v">
-        <BrowserTree :server="currentName" />
+        <browser-tree :server="currentName" />
+
+        <div class="nav-pane-bottom flex-box-h" v-if="filterForm.showFilter">
+            <n-input-group>
+                <n-select
+                    v-model:value="filterForm.type"
+                    :options="filterTypeOptions"
+                    style="width: 120px"
+                    :consistent-menu-width="false"
+                />
+                <n-input placeholder="" clearable />
+                <n-button ghost>
+                    <template #icon>
+                        <n-icon :component="Search" />
+                    </template>
+                </n-button>
+            </n-input-group>
+        </div>
         <!-- bottom function bar -->
         <div class="nav-pane-bottom flex-box-h">
+            <icon-button :icon="AddLink" size="20" stroke-width="4" t-tooltip="new_key" @click="onNewKey" />
+            <icon-button :icon="Refresh" size="20" stroke-width="4" t-tooltip="reload" @click="onRefresh" />
             <icon-button
-                :icon="AddLink"
+                :icon="Filter"
                 size="20"
                 stroke-width="4"
-                t-tooltip="new_key"
-                @click="onNewKey"
-            />
-            <icon-button
-                :icon="Refresh"
-                size="20"
-                stroke-width="4"
-                t-tooltip="reload"
-                @click="onRefresh"
+                t-tooltip="filter_key"
+                @click="filterForm.showFilter = !filterForm.showFilter"
             />
             <div class="flex-item-expand"></div>
             <icon-button
@@ -82,11 +94,6 @@ const onRefresh = () => {
                 t-tooltip="remove_key"
                 @click="onDeleteKey"
             />
-            <!--            <n-input placeholder="">-->
-            <!--                <template #prefix>-->
-            <!--                    <n-icon :component="Filter" color="#aaa" size="20" />-->
-            <!--                </template>-->
-            <!--            </n-input>-->
         </div>
     </div>
 </template>
