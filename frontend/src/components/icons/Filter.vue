@@ -1,4 +1,10 @@
 <script setup lang="ts">
+const props = defineProps({
+  strokeWidth: {
+    type: [Number, String],
+    default: 3,
+  },
+})
 </script>
 
 <template>
@@ -8,7 +14,7 @@
             fill="none"
             stroke="currentColor"
             stroke-linejoin="round"
-            stroke-width="3"
+            :stroke-width="props.strokeWidth"
         />
     </svg>
 </template>

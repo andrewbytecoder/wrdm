@@ -4,6 +4,8 @@ import useConnectionStore from '../../stores/connections'
 import { ConnectionType } from '../../consts/connection_type'
 import Close from '../icons/Close.vue'
 import type { PropType } from 'vue'
+import { useThemeVars } from 'naive-ui'
+
 
 interface TabItem {
   label?: string
@@ -19,6 +21,7 @@ interface CurrentSelect {
   key?: string
 }
 
+const themeVars = useThemeVars()
 const emit = defineEmits(['switchTab', 'closeTab', 'update:modelValue'])
 
 const props = defineProps({
@@ -37,7 +40,7 @@ const props = defineProps({
     ],
   },
   tabs: {
-    type: Array,
+    type: Array  as PropType<TabItem[]>,
     default: [
       {
         // label: 'tab1',
@@ -69,19 +72,6 @@ const onClickTab = (idx: number, key: string) => {
 }
 
 const onCloseTab = (idx: number, key: string) => {
-  const removed = items.value.splice(idx, 1)
-  if (removed.length <= 0) {
-    return
-  }
-
-  // Update select index if removed index equal current selected
-  if (selIndex.value === idx) {
-    selIndex.value -= 1
-    if (selIndex.value < 0 && items.value.length > 0) {
-      selIndex.value = 0
-    }
-  }
-  emit('update:modelValue', items.value)
   emit('closeTab', idx, key)
 }
 </script>

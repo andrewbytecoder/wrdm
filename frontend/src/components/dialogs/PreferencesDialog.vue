@@ -105,7 +105,7 @@ const onClose = () => {
         >
           <n-form-item :label="$t('theme')" required>
             <n-radio-group v-model:value="prefStore.general.theme" name="theme" size="medium">
-              <n-radio-button v-for="opt in prefStore.themeOption" :key="opt.value" :value="opt.value">
+              <n-radio-button v-for="opt in prefStore.getThemedOptions()" :key="opt.value" :value="opt.value">
                 {{ opt.label }}
               </n-radio-button>
             </n-radio-group>
@@ -118,7 +118,7 @@ const onClose = () => {
             />
           </n-form-item>
           <n-form-item :label="$t('font')" required>
-            <n-select v-model:value="prefStore.general.font" :options="prefStore.fontOption" filterable />
+            <n-select v-model:value="prefStore.general.font" :options="prefStore.getFontOptionsWithI18n()" filterable />
           </n-form-item>
           <n-form-item :label="$t('font_size')">
             <n-input-number v-model:value="prefStore.general.fontSize" :max="65535" :min="1" />
@@ -150,7 +150,7 @@ const onClose = () => {
             label-placement="left"
         >
           <n-form-item :label="$t('font')" required>
-            <n-select v-model:value="prefStore.editor.font" :options="prefStore.fontOption" filterable />
+            <n-select v-model:value="prefStore.editor.font" :options="prefStore.getFontOptionsWithI18n()" filterable />
           </n-form-item>
           <n-form-item :label="$t('font_size')" >
             <n-input-number v-model:value="prefStore.editor.fontSize" :max="65535" :min="1" />

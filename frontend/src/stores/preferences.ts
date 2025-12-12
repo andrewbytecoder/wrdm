@@ -92,19 +92,18 @@ const usePreferencesStore = defineStore('preferences', {
         },
 
         themeOption() {
-            const i18n = useI18n()
             return [
                 {
                     value: 'light',
-                    label: i18n.t('theme_light'),
+                    label: 'Light',
                 },
                 {
                     value: 'dark',
-                    label: i18n.t('theme_dark'),
+                    label: 'Dark',
                 },
                 {
                     value: 'auto',
-                    label: i18n.t('theme_auto'),
+                    label: 'Auto',
                 },
             ]
         },
@@ -125,7 +124,6 @@ const usePreferencesStore = defineStore('preferences', {
          * @returns {{path: string, label: string, value: string}[]}
          */
         fontOption(): FontOptions[] {
-            const i18n = useI18n()
             const option = map(this.fontList, (font: FontItem):FontOptions => ({
                 value: font.name,
                 label: font.name,
@@ -133,7 +131,7 @@ const usePreferencesStore = defineStore('preferences', {
             }))
             option.splice(0, 0, {
                 value: '',
-                label: i18n.t('none'),
+                label: 'None',
                 path: '',
             })
             return option
@@ -183,7 +181,7 @@ const usePreferencesStore = defineStore('preferences', {
          * load system font list
          * @returns {Promise<string[]>}
          */
-        async loadFontList(): Promise<FontItem[]> {
+        async loadFontList(): Promise<FontOptions[]> {
             const { success, data } = await GetFontList()
             if (success) {
                 const { fonts = [] } = data
@@ -191,7 +189,34 @@ const usePreferencesStore = defineStore('preferences', {
             } else {
                 this.fontList = []
             }
-            return this.fontList
+            
+            // 确保当前选择的字体在字体列表中存在，如果不存在则重置为默认值
+            if (this.fontList.length > 0) {
+                const generalFontExists = this.fontList.some(font => font.name === this.general.font);
+                if (!generalFontExists && this.general.font !== '') {
+                    this.general.font = '';
+                }
+                
+                const editorFontExists = this.fontList.some(font => font.name === this.editor.font);
+                if (!editorFontExists && this.editor.font !== '') {
+                    this.editor.font = '';
+                }
+            }
+            
+            // 返回字体选项而不是字体列表
+            const option = map(this.fontList, (font: FontItem):FontOptions => ({
+                value: font.name,
+                label: font.name,
+                path: font.path,
+            }))
+            
+            option.splice(0, 0, {
+                value: '',
+                label: 'None', // 默认值，稍后会在组件中进行国际化处理
+                path: '',
+            })
+            
+            return option
         },
 
         /**
@@ -249,6 +274,47 @@ const usePreferencesStore = defineStore('preferences', {
         setAsideWidth(width: number): void {
             this.general.asideWidth = width
         },
+        
+        /**
+         * 获取带国际化的主题选项
+         * @returns {*[]}
+         */
+        getThemedOptions() {
+            const i18n = useI18n()
+            return [
+                {
+                    value: 'light',
+                    label: i18n.t('theme_light'),
+                },
+                {
+                    value: 'dark',
+                    label: i18n.t('theme_dark'),
+                },
+                {
+                    value: 'auto',
+                    label: i18n.t('theme_auto'),
+                },
+            ]
+        },
+        
+        /**
+         * 获取带国际化的字体选项
+         * @returns {*[]}
+         */
+        getFontOptionsWithI18n(): FontOptions[] {
+            const i18n = useI18n()
+            const option = map(this.fontList, (font: FontItem):FontOptions => ({
+                value: font.name,
+                label: font.name,
+                path: font.path,
+            }))
+            option.splice(0, 0, {
+                value: '',
+                label: i18n.t('none'),
+                path: '',
+            })
+            return option
+        }
     },
 })
 

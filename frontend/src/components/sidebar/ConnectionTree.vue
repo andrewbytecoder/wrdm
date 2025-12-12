@@ -260,7 +260,18 @@ const handleSelectContextMenu = (key: string) => {
       openConnection(name!).then(() => {})
       break
     case 'server_edit':
-      dialogStore.openEditDialog(name as string)
+      // ask for close relevant connections before edit
+      if (connectionStore.isConnected(name as string)) {
+        confirmDialog.warning(i18n.t('edit_close_confirm'), () => {
+          connectionStore.closeConnection(name as string).then((success) => {
+            if (success) {
+              dialogStore.openEditDialog(name as string)
+            }
+          })
+        })
+      } else {
+        dialogStore.openEditDialog(name as string)
+      }
       break
     case 'server_remove':
       removeConnection(name as string)
@@ -346,7 +357,7 @@ const handleDrop = ({ node, dragNode, dropPosition }: TreeDropInfo) => {
       :render-label="renderLabel"
       :render-prefix="renderPrefix"
       @drop="handleDrop"
-        :pattern="props.filterPattern"
+        :pattern="filterPattern"
       class="fill-height"
       virtual-scroll
   />

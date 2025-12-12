@@ -9,7 +9,7 @@ export interface TabItem {
     type: string
     value?: any  // 类型不同返回的数据类型也可能不同
     server: string
-    db?: number
+    db: number
     key: string
     ttl?: number
 }
@@ -50,6 +50,7 @@ const useTabStore = defineStore('tab', {
     actions: {
         newBlankTab(): void {
             this.tabList.push({
+                db: 0,
                 key: '',
                 type: '',
                 server: '',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { types } from '../../consts/support_redis_type'
 import ContentValueHash from '../content_value/ContentValueHash.vue'
 import ContentValueList from '../content_value/ContentValueList.vue'
@@ -141,7 +141,6 @@ const onCloseTab = (tabIndex: number) => {
 
 <template>
   <div class="content-container flex-box-v">
-<!--        <content-tab :model-value="tab"></content-tab>-->
 <!--    value 传入的事啥，关闭的时候传入的参数也是啥-->
     <n-tabs
         v-model:value="tabStore.activatedIndex"

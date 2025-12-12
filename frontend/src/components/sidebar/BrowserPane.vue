@@ -4,14 +4,19 @@ import AddLink from '../icons/AddLink.vue'
 import BrowserTree from './BrowserTree.vue'
 import IconButton from '../common/IconButton.vue'
 import useTabStore from '../../stores/tab.js'
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { get } from 'lodash'
 import Delete from '../icons/Delete.vue'
 import Refresh from '../icons/Refresh.vue'
 import useDialogStore from '../../stores/dialog.js'
-import { useConfirmDialog } from '../../utils/confirm_dialog.js'
+import { useConfirmDialog } from '../../utils/confirm_dialog'
 import { useI18n } from 'vue-i18n'
-import useConnectionStore from '../../stores/connections.js'
+import useConnectionStore from '../../stores/connections'
+import Filter from '../icons/Filter.vue'
+import { types } from '../../consts/support_redis_type'
+import Search from '../icons/Search.vue'
+
+
 
 const themeVars = useThemeVars()
 const dialogStore = useDialogStore()
@@ -22,14 +27,14 @@ const currentName = computed((): string => get(tabStore.currentTab, 'name', ''))
  *
  * @type {ComputedRef<{server: string, db: number, key: string}>}
  */
-const currentSelect = computed(() => {
+const currentSelect = computed((): { server: string, db: number, key: string } => {
   const { server, db, key } = tabStore.currentTab
   return { server, db, key }
 })
 
 const onNewKey = () => {
-  const { server, db, key } = currentSelect.value
-  dialogStore.openNewKeyDialog(key ?? '', server ?? '', db ?? 0)
+  const { server, key, db = 0 } = currentSelect.value
+  dialogStore.openNewKeyDialog(key ?? '', server ?? '', db)
 }
 
 const i18n = useI18n()
@@ -52,12 +57,30 @@ const onRefresh = () => {
     message.success(i18n.t('reload_succ'))
   })
 }
+
+const filterForm = reactive({
+  showFilter: false,
+  type: '',
+  pattern: '',
+})
+
+const filterTypeOptions = computed(() => {
+  const options = Object.keys(types).map((t) => ({
+    value: t,
+    label: t,
+  }))
+  options.splice(0, 0, {
+    value: '',
+    label: i18n.t('all'),
+  })
+  return options
+})
+
 </script>
 
 <template>
     <div class="nav-pane-container flex-box-v">
         <browser-tree :server="currentName" />
-
         <div class="nav-pane-bottom flex-box-h" v-if="filterForm.showFilter">
             <n-input-group>
                 <n-select
