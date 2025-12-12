@@ -59,6 +59,7 @@ const connectionStore = useConnectionStore()
 const dialogStore = useDialogStore()
 
 const data = computed(() => {
+  // 根据传入的server，返回对应的数据
   const dbs = get(connectionStore.databases, props.server, [])
   return [
     {
