@@ -81,6 +81,9 @@ const filterTypeOptions = computed(() => {
 <template>
     <div class="nav-pane-container flex-box-v">
         <BrowserTree :server="currentName" />
+        <n-text>
+          {{ currentName }}
+        </n-text>
 <!--       通过点击图标，来控制是否显示过滤器-->
         <div class="nav-pane-bottom flex-box-h" v-if="filterForm.showFilter">
             <n-input-group>

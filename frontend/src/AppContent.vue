@@ -83,7 +83,7 @@ const dragging = computed<boolean>(() => {
     <!-- structure page-->
     <div v-show="tabStore.nav === 'browser'" class="flex-box-h flex-item-expand">
       <div id="app-side" :style="{ width: asideWidthVal }" class="flex-box-h flex-item">
-        <browser-pane
+        <BrowserPane
             v-for="t in tabStore.tabs"
             v-show="get(tabStore.currentTab, 'name') === t.name"
             :key="t.name"

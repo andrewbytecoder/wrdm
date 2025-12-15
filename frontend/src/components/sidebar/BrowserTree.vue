@@ -39,14 +39,6 @@ interface TreeNode {
   redisKey?: string
 }
 
-// 定义菜单选项类型
-interface MenuOption {
-  key: string
-  label: string
-  icon?: Function
-  type?: string
-}
-
 interface Props {
   server: string
 }
@@ -424,15 +416,14 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
   }
 }
 
-
-
-const onLoadTree = async (node: TreeOption) => {
+// 这里是展开树节点
+const onLoadTree = async (node: TreeNode) => {
   switch (node.type) {
     case ConnectionType.RedisDB:
       loading.value = true
       try {
-        if (typeof node.server === 'string' && typeof node.db === 'number') {
-          await connectionStore.openDatabase(node.server, node.db)
+        if (typeof node.db === 'number') {
+          await connectionStore.openDatabase(props.server, node.db)
         }
       } catch (e: any) {
         message.error(e.message)
