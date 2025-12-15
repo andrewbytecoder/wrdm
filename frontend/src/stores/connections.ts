@@ -148,9 +148,11 @@ interface SelectParams {
 }
 
 export interface HistoryItem {
+    timestamp: number
     time: string
     server: string
     cmd: string
+    cost: number
 }
 
 
@@ -255,7 +257,7 @@ const useConnectionStore = defineStore('connections', {
         /**
          * get connection by name from local profile
          * @param name
-         * @returns {Promise<{}|null>}
+         * @returns {Promise<ConnectionProfile|null>}
          */
         async getConnectionProfile(name:string):Promise<ConnectionItem> {
             try {

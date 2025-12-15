@@ -1,21 +1,31 @@
 <script setup lang="ts">
 import {computed} from "vue";
-import {types, typesColor} from "../../consts/support_redis_type";
+import {typesBgColor, typesColor} from "../../consts/support_redis_type";
+
 
 interface Props {
   type?: string
   color?: string
   size?: string
+  bordered: boolean,
 }
+
+
+//  size 的值，只能为 'small' | 'medium' | 'large'
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'STRING',
   color: 'white',
-  size: undefined,
+  bordered: false,
+  size: 'medium',
+})
+
+const fontColor = computed(() => {
+  return typesColor[props.type]
 })
 
 const backgroundColor = computed(() => {
-  return typesColor[props.type]
+  return typesBgColor[props.type]
 })
 
 </script>
@@ -23,7 +33,7 @@ const backgroundColor = computed(() => {
 <template>
   <n-tag
     :bordered="false"
-    :color="{color:backgroundColor, textColor: props.color}"
+    :color="{ color: backgroundColor, borderColor: fontColor, textColor: fontColor }"
     :size="props.size"
     :class="[props.size === 'small' ? 'redis-type-tag-small' : 'redis-type-tag']"
     strong

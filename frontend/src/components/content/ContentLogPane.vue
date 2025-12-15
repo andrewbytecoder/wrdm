@@ -5,8 +5,8 @@ import Refresh from '../icons/Refresh.vue'
 import useConnectionStore, { HistoryItem} from '../../stores/connections'
 import { map, uniqBy } from 'lodash'
 import { useI18n } from 'vue-i18n'
-import type { DataTableInst } from 'naive-ui'
-
+import type { DataTableInst, DataTableColumn } from 'naive-ui'
+import dayjs from 'dayjs'
 
 const connectionStore = useConnectionStore()
 const i18n = useI18n()
@@ -31,6 +31,59 @@ const filterServerOption = computed(() => {
 
 const tableRef = ref<DataTableInst | null>(null)
 
+
+const columns: DataTableColumn<HistoryItem>[] = [
+  {
+    title: i18n.t('exec_time'),
+    key: 'timestamp',
+    defaultSortOrder: 'ascend',
+    sorter: 'default',
+    width: 180,
+    align: 'center',
+    titleAlign: 'center',
+    render( rawData: HistoryItem, index: number) {
+      return dayjs(rawData.timestamp).locale('zh-cn').format('YYYY-MM-DD HH:mm:ss')
+    },
+  },
+  {
+    title: i18n.t('server'),
+    key: 'server',
+    filterOptionValue: data.server,
+    filter(value: string | number, row: HistoryItem) {
+      return value === '' || row.server === value.toString()
+    },
+    align: 'center',
+    titleAlign: 'center',
+    width: 150,
+    ellipsis: true,
+  },
+  {
+    title: i18n.t('cmd'),
+    key: 'cmd',
+    titleAlign: 'center',
+    filterOptionValue: data.keyword,
+    resizable: true,
+    filter(value: string | number, row: HistoryItem) {
+      return value === '' || row.cmd.includes(value.toString())
+    },
+  },
+  {
+    title: i18n.t('cost_time'),
+    key: 'cost',
+    width: 100,
+    align: 'center',
+    titleAlign: 'center',
+    render({ cost }: HistoryItem, index: number) {
+      const ms = dayjs.duration(cost).asMilliseconds()
+      if (ms < 1000) {
+        return `${ms} ms`
+      } else {
+        return `${Math.floor(ms / 1000)} s`
+      }
+    },
+  },
+]
+
 const loadHistory = () => {
     data.loading = true
     connectionStore
@@ -45,9 +98,11 @@ const loadHistory = () => {
             })
         })
 }
+
 onActivated(() => {
     nextTick(() => loadHistory())
 })
+
 </script>
 
 <template>
@@ -76,33 +131,7 @@ onActivated(() => {
             <n-data-table
                 ref="tableRef"
                 class="flex-item-expand"
-                :columns="[
-                    {
-                        title: $t('exec_time'),
-                        key: 'time',
-                        defaultSortOrder: 'ascend',
-                        sorter: 'default',
-                        width: 180,
-                    },
-                    {
-                        title: $t('server'),
-                        key: 'server',
-                        filterOptionValue: data.server,
-                        filter(value: string | number, row: HistoryItem) {
-                            return value === '' || row.server === value.toString()
-                        },
-                        width: 150,
-                        ellipsis: true,
-                    },
-                    {
-                        title: $t('cmd'),
-                        key: 'cmd',
-                        filterOptionValue: data.keyword,
-                        filter(value: string | number, row: HistoryItem) {
-                            return value === '' || !!~row.cmd.indexOf(value.toString())
-                        },
-                    },
-                ]"
+                :columns="columns"
                 :data="data.history"
                 flex-height
             />

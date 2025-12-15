@@ -21,7 +21,7 @@ import ToggleServer from '../icons/ToggleServer.vue'
 import Unlink from '../icons/Unlink.vue'
 import Filter from '../icons/Filter.vue'
 import Close from '../icons/Close.vue'
-import { typesColor } from '../../consts/support_redis_type.js'
+import { typesColor, typesBgColor } from '../../consts/support_redis_type.js'
 import {VNode} from "@vue/runtime-core";
 
 // 定义节点类型
@@ -344,7 +344,10 @@ const renderSuffix = ({ option }: { option: TreeOption }) => {
                 size: 'small',
                 closable: true,
                 bordered: false,
-                color: { color: typesColor[typeFilter], textColor: 'white' },
+                color: {
+                  color: typesBgColor[typeFilter],
+                  textColor: typesColor[typeFilter],
+                },
                 onClose: () => {
                   // remove type filter
                   connectionStore.setKeyFilter(server as string, db as number, matchPattern, '')
