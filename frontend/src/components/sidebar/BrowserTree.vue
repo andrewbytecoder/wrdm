@@ -54,7 +54,17 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   server: ''
 })
-
+const backgroundColor = computed(() => {
+  const { markColor: hex = '' } = connectionStore.serverProfile[props.server] || {}
+  if (isEmpty(hex)) {
+    return ''
+  }
+  const bigint = parseInt(hex.slice(1), 16)
+  const r = (bigint >> 16) & 255
+  const g = (bigint >> 8) & 255
+  const b = bigint & 255
+  return `rgba(${r}, ${g}, ${b}, 0.2)`
+})
 // 当上面菜单打开的时候，将对应的数据都保存一份，这样在弹出的菜单中能获取到数据
 interface DropDownMenuParam {
   show: boolean
@@ -96,7 +106,7 @@ const data = computed<TreeNode[]>(() => {
   ]
 })
 
-const dropDownMenuParam = reactive<DropDownMenuParam>({
+const contextMenuParam = reactive<DropDownMenuParam>({
   show: false,
   x: 0,
   y: 0,
@@ -398,13 +408,13 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
       if (mop == null) {
         return
       }
-      dropDownMenuParam.show = false
+      contextMenuParam.show = false
       nextTick().then(() => {
-        dropDownMenuParam.options = mop(option)
-        dropDownMenuParam.currentNode = option
-        dropDownMenuParam.x = e.clientX
-        dropDownMenuParam.y = e.clientY
-        dropDownMenuParam.show = true
+        contextMenuParam.options = mop(option)
+        contextMenuParam.currentNode = option
+        contextMenuParam.x = e.clientX
+        contextMenuParam.y = e.clientY
+        contextMenuParam.show = true
         selectedKeys.value = [option.key as string]
       })
     },
@@ -440,12 +450,12 @@ const onLoadTree = async (node: TreeOption) => {
 
 const confirmDialog = useConfirmDialog()
 const handleSelectContextMenu = (key: string) => {
-  dropDownMenuParam.show = false
+  contextMenuParam.show = false
 
   //  在选择的时候会更新 currentNode
-  if (!dropDownMenuParam.currentNode) return
+  if (!contextMenuParam.currentNode) return
 
-  const { db, key: nodeKey, redisKey } = dropDownMenuParam.currentNode
+  const { db, key: nodeKey, redisKey } = contextMenuParam.currentNode
   switch (key) {
     case 'server_reload':
       connectionStore.openConnection(props.server, true).then(() => {
@@ -509,44 +519,50 @@ const handleSelectContextMenu = (key: string) => {
 }
 
 const handleOutsideContextMenu = () => {
-  dropDownMenuParam.show = false
+  contextMenuParam.show = false
 }
 </script>
 
 <!-- 在任何指标下进行 dropdown 点击会出现下来框-->
 <template>
-  <n-tree
-      :block-line="true"
-      :block-node="true"
-      :animated="false"
-      :cancelable="false"
-      :data="data"
-      :expand-on-click="false"
-      :expanded-keys="expandedKeys"
-      :selected-keys="selectedKeys"
-      @update:selected-keys="onUpdateSelectedKeys"
-      :node-props="nodeProps"
-      @load="onLoadTree"
-      @update:expanded-keys="onUpdateExpanded"
-      :render-label="renderLabel"
-      :render-prefix="renderPrefix"
-      :render-suffix="renderSuffix"
-      class="fill-height"
-      virtual-scroll
-  />
-<!--  跟在任何元素下，然后使用对应的方式触发即可-->
-  <n-dropdown
-      :animated="false"
-      :options="dropDownMenuParam.options"
-      :render-label="renderContextLabel"
-      :show="dropDownMenuParam.show"
-      :x="dropDownMenuParam.x"
-      :y="dropDownMenuParam.y"
-      placement="bottom-start"
-      trigger="manual"
-      @clickoutside="handleOutsideContextMenu"
-      @select="handleSelectContextMenu"
-  />
+  <div class="browser-tree-wrapper" :style="{ backgroundColor }">
+    <n-tree
+        :block-line="true"
+        :block-node="true"
+        :animated="false"
+        :cancelable="false"
+        :data="data"
+        :expand-on-click="false"
+        :expanded-keys="expandedKeys"
+        :selected-keys="selectedKeys"
+        @update:selected-keys="onUpdateSelectedKeys"
+        :node-props="nodeProps"
+        @load="onLoadTree"
+        @update:expanded-keys="onUpdateExpanded"
+        :render-label="renderLabel"
+        :render-prefix="renderPrefix"
+        :render-suffix="renderSuffix"
+        class="fill-height"
+        virtual-scroll
+    />
+    <n-dropdown
+        :animated="false"
+        :options="contextMenuParam.options"
+        :render-label="renderContextLabel"
+        :show="contextMenuParam.show"
+        :x="contextMenuParam.x"
+        :y="contextMenuParam.y"
+        placement="bottom-start"
+        trigger="manual"
+        @clickoutside="handleOutsideContextMenu"
+        @select="handleSelectContextMenu"
+    />
+  </div>
 </template>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.browser-tree-wrapper {
+  height: 100%;
+  overflow: hidden;
+}
+</style>

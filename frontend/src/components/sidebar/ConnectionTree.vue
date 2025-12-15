@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import useDialogStore from '../../stores/dialog'
-import { h, nextTick, reactive, ref, watch } from 'vue'
+import { h, nextTick, reactive, ref } from 'vue'
 import useConnectionStore,  { DatabaseItem } from '../../stores/connections'
 import { NIcon, useDialog, useMessage, useThemeVars, TreeSelectOption, TreeOption, TreeDropInfo  } from 'naive-ui'
 import { ConnectionType } from '../../consts/connection_type'
 import ToggleFolder from '../icons/ToggleFolder.vue'
 import ToggleServer from '../icons/ToggleServer.vue'
-import { debounce, indexOf, size, split } from 'lodash'
+import { debounce, indexOf, isEmpty } from 'lodash'
 import Config from '../icons/Config.vue'
 import Delete from '../icons/Delete.vue'
 import Unlink from '../icons/Unlink.vue'
@@ -134,10 +134,7 @@ const menuOptions: Record<number, Function> = {
 }
 
 const renderLabel = ({ option }: { option: TreeSelectOption }) => {
-  // switch (option.type) {
-  //     case ConnectionType.Server:
-  //         return h(ConnectionTreeItem, { title: option.label })
-  // }
+
   return option.label
 }
 
@@ -166,6 +163,24 @@ const renderPrefix = ({ option }: { option: ExtendedTreeOption }) => {
   }
 }
 
+const renderSuffix = ({ option }: { option: TreeSelectOption }) => {
+  if (option.type === ConnectionType.Server) {
+    const { markColor = '' } = connectionStore.serverProfile[option.name as string] || {}
+    if (isEmpty(markColor)) {
+      return ''
+    }
+    return h('div', {
+      style: {
+        borderRadius: '50%',
+        backgroundColor: markColor,
+        width: '13px',
+        height: '13px',
+        border: '2px solid white',
+      },
+    })
+  }
+  return null
+}
 const onUpdateExpandedKeys = (keys: string[], option: TreeSelectOption) => {
   expandedKeys.value = keys
 }
@@ -353,6 +368,7 @@ const handleDrop = ({ node, dragNode, dropPosition }: TreeDropInfo) => {
       @update:expanded-keys="onUpdateExpandedKeys"
       :selected-keys="selectedKeys"
       :render-label="renderLabel"
+      :render-suffix="renderSuffix"
       :render-prefix="renderPrefix"
       @drop="handleDrop"
         :pattern="filterPattern"

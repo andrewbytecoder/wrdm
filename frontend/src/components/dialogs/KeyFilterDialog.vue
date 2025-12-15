@@ -91,7 +91,7 @@ const onClose = () => {
           </n-form-item>
             <n-form-item :label="$t('filter_pattern')" required>
                 <n-input-group>
-                    <n-tooltip>
+                    <n-tooltip trigger="focus">
                         <template #trigger>
                             <n-input v-model:value="filterForm.pattern" placeholder="Filter Pattern" clearable />
                         </template>
