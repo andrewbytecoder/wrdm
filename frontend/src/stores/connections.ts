@@ -418,6 +418,7 @@ const useConnectionStore = defineStore('connections', {
             // if (connNode == null) {
             //     throw new Error('no such connection')
             // }
+            //  正常情况下，每个conn 有16个 db
             const dbs: DatabaseItem[] = []
             for (let i = 0; i < cdbs.length; i++) {
                 dbs.push({
