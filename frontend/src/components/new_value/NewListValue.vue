@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { compact } from 'lodash'
+import { compact, isEmpty } from 'lodash'
 import Add from '../icons/Add.vue'
 import Delete from '../icons/Delete.vue'
 import IconButton from '../common/IconButton.vue'
@@ -18,6 +18,12 @@ const emit = defineEmits<{
 }>()
 
 const list = ref<string[]>([''])
+
+defineExpose({
+  validate: () => {
+    return !isEmpty(props.value)
+  },
+})
 
 const onUpdate = (val: string[]) => {
   val = compact(val)

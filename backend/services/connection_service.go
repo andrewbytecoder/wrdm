@@ -558,13 +558,11 @@ func (c *ConnectionService) SetKeyValue(connName string, db int, key, keyType st
 			return
 		} else {
 			_, err = rdb.Pipelined(ctx, func(pipe redis.Pipeliner) error {
-				if len(strs) > 0 {
-					for _, str := range strs {
-						pipe.SAdd(ctx, key, str.(string))
-					}
-				} else {
-					pipe.SAdd(ctx, key)
+				for _, str := range strs {
+					pipe.SAdd(ctx, key, str.(string))
 				}
+
+				// 如果与过去时间，设置过期时间
 				if expiration > 0 {
 					pipe.Expire(ctx, key, expiration)
 				}
@@ -580,9 +578,10 @@ func (c *ConnectionService) SetKeyValue(connName string, db int, key, keyType st
 			_, err = rdb.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 				var members []redis.Z
 				for i := 0; i < len(strs); i += 2 {
+					score, _ := strconv.ParseFloat(strs[i+1].(string), 64)
 					members = append(members, redis.Z{
+						Score:  score,
 						Member: strs[i],
-						Score:  strs[i+1].(float64),
 					})
 				}
 

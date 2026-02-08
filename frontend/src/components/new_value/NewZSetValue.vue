@@ -31,11 +31,17 @@ const onCreate = (): ZSetItem => {
   }
 }
 
+defineExpose({
+  validate: () => {
+    return !isEmpty(props.value)
+  },
+})
+
 const onUpdate = (): void => {
   const val = reject(zset.value, (v) => v == null || isEmpty(v.value)) as ZSetItem[]
   emit(
       'update:value',
-      flatMap(val, (item) => [item.value, item.score])
+      flatMap(val, (item) => [item.value, item.score.toString()])
   )
 }
 </script>

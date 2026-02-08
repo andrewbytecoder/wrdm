@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { compact, uniq } from 'lodash'
+import {compact, isEmpty, uniq} from 'lodash'
 import Add from '../icons/Add.vue'
 import Delete from '../icons/Delete.vue'
 import IconButton from '../common/IconButton.vue'
@@ -25,6 +25,12 @@ const onUpdate = (val: Array<string>) => {
   console.log("after console value", val)
   emit('update:value', val)
 }
+
+defineExpose({
+  validate: () => {
+    return !isEmpty(props.value)
+  },
+})
 
 </script>
 
