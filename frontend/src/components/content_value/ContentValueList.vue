@@ -5,10 +5,10 @@ import ContentToolbar from './ContentToolbar.vue'
 import AddLink from '../icons/AddLink.vue'
 import { NButton, NCode, NIcon, NInput, useMessage, DataTableColumn } from 'naive-ui'
 import { size } from 'lodash'
-import { types, types as redisTypes } from '../../consts/support_redis_type.js'
+import { types, types as redisTypes } from '../../consts/support_redis_type'
 import EditableTableColumn from '../common/EditableTableColumn.vue'
 import useConnectionStore from '../../stores/connections'
-import useDialogStore from '../../stores/dialog.js'
+import useDialogStore from '../../stores/dialog'
 import type { PropType } from 'vue'
 
 interface ListValue extends Array<string> {}

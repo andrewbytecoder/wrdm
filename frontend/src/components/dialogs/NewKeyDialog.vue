@@ -117,7 +117,6 @@ const onAdd = async () => {
       message.success('Valid')
     }
     else {
-      console.log(errors)
       message.error('Invalid')
     }
   })
@@ -126,12 +125,9 @@ const onAdd = async () => {
     //  将对应的数据取出
     const { server, db, key, type, ttl } = newForm
     let { value } = newForm
-    console.log("--------", newForm.value)
     if (value == null) {
       value = defaultValue[type]
     }
-    console.log("--------", newForm.value)
-    console.log("--------", value)
     const { success, msg } = await connectionStore.setKey(server, db, key, type, value, ttl)
     if (success) {
       dialogStore.closeNewKeyDialog()

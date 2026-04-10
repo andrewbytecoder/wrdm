@@ -9,7 +9,7 @@ import useConnectionStore from '../../stores/connections'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
 import IconButton from '../common/IconButton.vue'
-import { useConfirmDialog } from '../../utils/confirm_dialog.js'
+import { useConfirmDialog } from '../../utils/confirm_dialog'
 import {ref} from 'vue'
 
 interface Props {

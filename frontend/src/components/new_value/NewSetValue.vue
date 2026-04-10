@@ -20,9 +20,7 @@ const emit = defineEmits<{
 const set = ref<Array<string>>([])
 
 const onUpdate = (val: Array<string>) => {
-  console.log("console value", val)
   val = uniq(compact(val))
-  console.log("after console value", val)
   emit('update:value', val)
 }
 

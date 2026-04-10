@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import useConnectionStore from './connections.js'
+import useConnectionStore from './connections'
 import {ConnParam, ConnectionItem} from '../config/dbs';
 
 interface NewKeyParam {
@@ -101,7 +101,6 @@ const useDialogStore = defineStore('dialog', {
         },
 
         async openEditDialog(name: string) {
-            console.log('open edit dialog:' + name)
             const connStore = useConnectionStore()
             let profile = await connStore.getConnectionProfile(name)
             if (!profile) {

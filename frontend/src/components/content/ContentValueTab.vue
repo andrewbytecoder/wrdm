@@ -53,7 +53,6 @@ const props = defineProps({
 
 const connectionStore = useConnectionStore()
 const onCurrentSelectChange = ({ type, group = '', server = '', db = 0, key = '' }: CurrentSelect) => {
-  console.log(`group: ${group}\n server: ${server}\n db: ${db}\n key: ${key}`)
   if (type === ConnectionType.RedisValue) {
     // load and update content value
   }

@@ -15,8 +15,8 @@ import GroupDialog from './components/dialogs/GroupDialog.vue'
 import DeleteKeyDialog from './components/dialogs/DeleteKeyDialog.vue'
 import { computed, onBeforeMount, ref } from 'vue'
 import { get } from 'lodash'
-import usePreferencesStore from './stores/preferences.js'
-import useConnectionStore from './stores/connections.js'
+import usePreferencesStore from './stores/preferences'
+import useConnectionStore from './stores/connections'
 import { useI18n } from 'vue-i18n'
 import { darkTheme, lightTheme, useOsTheme } from 'naive-ui'
 import KeyFilterDialog from './components/dialogs/KeyFilterDialog.vue'
@@ -58,6 +58,7 @@ const i18n = useI18n()
 const initializing = ref(false)
 onBeforeMount(async () => {
   try {
+    //  在初始化配置的时候显示加载界面
     initializing.value = true
     await prefStore.loadPreferences()
     i18n.locale.value = get(prefStore.general, 'language', 'en')

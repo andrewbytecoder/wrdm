@@ -16,7 +16,7 @@ import { useI18n } from 'vue-i18n'
 import useTabStore from '../../stores/tab'
 import Edit from '../icons/Edit.vue'
 import { renderIcon } from '../../utils/render_model'
-import { useConfirmDialog } from '../../utils/confirm_dialog.js'
+import { useConfirmDialog } from '../../utils/confirm_dialog'
 import {ConnectionItem} from "../../config/dbs";
 // import { TreeOption } from 'naive-ui/lib/tree/src/interface';
 
@@ -195,7 +195,6 @@ const onUpdateSelectedKeys = (keys: string[], option: TreeSelectOption) => {
  */
 const openConnection = async (name: string) => {
   try {
-    console.log('openConnection', name)
     if (!connectionStore.isConnected(name)) {
       openingConnection.value = true
       await connectionStore.openConnection(name, false)

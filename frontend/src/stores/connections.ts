@@ -43,12 +43,12 @@ import {
     UpdateSetItem,
     UpdateZSetValue,
 } from '../../wailsjs/go/services/connectionService.js'
-import { ConnectionType } from '../consts/connection_type.js'
-import useTabStore from './tab.js'
+import { ConnectionType } from '../consts/connection_type'
+import useTabStore from './tab'
 import {types} from "../../wailsjs/go/models";
 import {ConnectionItem} from '../config/dbs'
 import key from "../components/icons/Key.vue";
-import { types as colorList, validType } from '../consts/support_redis_type.js'
+import { types as colorList, validType } from '../consts/support_redis_type'
 
 // 数据库 每个redis 默认 16个数据库
 export interface DatabaseItem {
@@ -199,7 +199,6 @@ const useConnectionStore = defineStore('connections', {
     }),
     getters: {
         anyConnectionOpened(): boolean {
-            console.log(this.databases)
             return !isEmpty(this.databases)
         },
     },
@@ -264,7 +263,6 @@ const useConnectionStore = defineStore('connections', {
             }
             this.connections = conns
             this.serverProfile = profiles
-            console.debug(JSON.stringify(this.connections))
             this.groups = uniq(groups)
         },
 
@@ -318,12 +316,18 @@ const useConnectionStore = defineStore('connections', {
         getConnection(name: string): ConnectionItem | null {
             const conns = this.connections
             for (let i = 0; i < conns.length; i++) {
-                if (conns[i].type === ConnectionType.Server && conns[i].key === name) {
+                if (
+                    conns[i].type === ConnectionType.Server &&
+                    (conns[i].key === name || conns[i].name === name)
+                ) {
                     return conns[i]
                 } else if (conns[i].type === ConnectionType.Group) {
                     const children = conns[i].connections || []
                     for (let j = 0; j < children.length; j++) {
-                        if (children[j].type === ConnectionType.Server && conns[i].key === name) {
+                        if (
+                            children[j].type === ConnectionType.Server &&
+                            (children[j].key === name || children[j].name === name)
+                        ) {
                             return children[j]
                         }
                     }
@@ -792,14 +796,11 @@ const useConnectionStore = defineStore('connections', {
                         nodeMap.set(nodeKey, selectedNode)
                         if (!replaceKey) {
                             if (sortInsert) {
-                                if (sortInsert) {
-                                    const index = sortedIndexBy(children, selectedNode, (elem) => {
-                                        return elem.key > selectedNode.key
-                                    })
-                                    children?.splice(index, 0, selectedNode)
-                                } else {
-                                    children?.push(selectedNode)
-                                }
+                                const index = sortedIndexBy(children, selectedNode, (elem) => elem.key)
+                                children?.splice(index, 0, selectedNode)
+                                result.newKey += 1
+                            } else {
+                                children?.push(selectedNode)
                                 result.newKey += 1
                             }
                         } else {

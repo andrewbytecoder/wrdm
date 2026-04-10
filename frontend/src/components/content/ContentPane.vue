@@ -12,7 +12,7 @@ import type { Component } from 'vue'
 import { useDialog } from 'naive-ui'
 import useConnectionStore from '../../stores/connections'
 import { useI18n } from 'vue-i18n'
-import { useConfirmDialog } from '../../utils/confirm_dialog.js'
+import { useConfirmDialog } from '../../utils/confirm_dialog'
 import ContentServerStatus from '../content_value/ContentServerStatus.vue'
 
 //  主内容界面
@@ -27,6 +27,7 @@ const serverName = computed(():string => {
 })
 
 const loadingServerInfo = ref<boolean>(false)
+let refreshingServerInfo = false
 
 /**
  * refresh server status info
@@ -34,20 +35,22 @@ const loadingServerInfo = ref<boolean>(false)
  * @returns {Promise<void>}
  */
 const refreshInfo = async (force: boolean): Promise<void> => {
-  if (force) {
-    loadingServerInfo.value = true
-  }
-
-  if (!isEmpty(serverName.value) && connectionStore.isConnected(serverName.value)) {
-    try {
+  if (refreshingServerInfo) return
+  refreshingServerInfo = true
+  if (force) loadingServerInfo.value = true
+  try {
+    if (!isEmpty(serverName.value) && connectionStore.isConnected(serverName.value)) {
       serverInfo.value = await connectionStore.getServerInfo(serverName.value)
-    } finally {
-      loadingServerInfo.value = false
     }
+  } catch (e: any) {
+    console.warn('refresh server info failed', e)
+  } finally {
+    if (force) loadingServerInfo.value = false
+    refreshingServerInfo = false
   }
 }
 
-let intervalId: number
+let intervalId: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   refreshInfo(true)
   intervalId = setInterval(() => {
@@ -58,7 +61,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  clearInterval(intervalId)
+  if (intervalId != null) {
+    clearInterval(intervalId)
+    intervalId = undefined
+  }
 })
 
 interface TabInfo {
@@ -151,7 +157,6 @@ const onCloseTab = (tabIndex: number) => {
 
 
   tabStore.removeTab(tabIndex)
-  console.log('TODO: close connection also')
 }
 </script>
 

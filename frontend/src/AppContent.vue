@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import ContentPane from './components/content/ContentPane.vue'
 import BrowserPane from './components/sidebar/BrowserPane.vue'
-import { computed, reactive } from 'vue'
+import { computed, onBeforeUnmount, reactive } from 'vue'
 import { debounce, get } from 'lodash'
 import { useThemeVars } from 'naive-ui'
 import NavMenu from './components/sidebar/NavMenu.vue'
 import ConnectionPane from './components/sidebar/ConnectionPane.vue'
 import ContentServerPane from './components/content/ContentServerPane.vue'
-import useTabStore from './stores/tab.js'
+import useTabStore from './stores/tab'
 import usePreferencesStore from './stores/preferences'
 import useConnectionStore from './stores/connections'
 import ContentLogPane from './components/content/ContentLogPane.vue'
@@ -73,6 +73,11 @@ const asideWidthVal = computed<string>(() => {
 //  计算属性，避免重复进行计算
 const dragging = computed<boolean>(() => {
   return data.hoverResize || data.resizing
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
 })
 </script>
 

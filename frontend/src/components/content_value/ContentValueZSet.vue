@@ -4,11 +4,11 @@ import { useI18n } from 'vue-i18n'
 import ContentToolbar from './ContentToolbar.vue'
 import AddLink from '../icons/AddLink.vue'
 import { NButton, NCode, NIcon, NInput, NInputNumber, useMessage, DataTableColumn } from 'naive-ui'
-import { types, types as redisTypes } from '../../consts/support_redis_type.js'
+import { types, types as redisTypes } from '../../consts/support_redis_type'
 import EditableTableColumn from '../common/EditableTableColumn.vue'
 import useConnectionStore from '../../stores/connections'
 import { isEmpty, replace } from 'lodash'
-import useDialogStore from '../../stores/dialog.js'
+import useDialogStore from '../../stores/dialog'
 
 interface ZSetValue {
   value: string

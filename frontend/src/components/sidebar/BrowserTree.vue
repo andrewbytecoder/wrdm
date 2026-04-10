@@ -21,7 +21,7 @@ import ToggleServer from '../icons/ToggleServer.vue'
 import Unlink from '../icons/Unlink.vue'
 import Filter from '../icons/Filter.vue'
 import Close from '../icons/Close.vue'
-import { typesColor, typesBgColor } from '../../consts/support_redis_type.js'
+import { typesColor, typesBgColor } from '../../consts/support_redis_type'
 import {VNode} from "@vue/runtime-core";
 
 // 定义节点类型
@@ -114,7 +114,6 @@ interface MenuOptions {
 //  Record<number, Function> 定义一个键值对，key为number，value为Function
 const menuOptions: MenuOptions = {
   [ConnectionType.Server]: () => {
-    console.log('open server context')
     return [
       {
         key: 'server_reload',

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import useDialog from '../../stores/dialog'
-import useTabStore from '../../stores/tab.js'
+import useTabStore from '../../stores/tab'
 import useConnectionStore from '../../stores/connections'
-import type { TabItem } from '../../stores/tab.js'
+import type { TabItem } from '../../stores/tab'
 import {
   NForm,
   NFormItem,

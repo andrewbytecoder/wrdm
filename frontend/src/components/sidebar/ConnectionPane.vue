@@ -7,7 +7,7 @@ import ConnectionTree from './ConnectionTree.vue'
 import IconButton from '../common/IconButton.vue'
 import Filter from '../icons/Filter.vue'
 import Unlink from '../icons/Unlink.vue'
-import useConnectionStore from '../../stores/connections.js'
+import useConnectionStore from '../../stores/connections'
 import { ref } from 'vue'
 import { useI18n } from "vue-i18n";
 
