@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import AddLink from '../icons/AddLink.vue'
-import useDialogStore from '../../stores/dialog'
+import AddLink from '@/components/icons/AddLink.vue'
+import useDialogStore from '@/stores/dialog'
 
 const dialogStore = useDialogStore()
 

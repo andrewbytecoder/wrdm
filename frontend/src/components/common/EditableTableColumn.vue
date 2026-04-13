@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import IconButton from './IconButton.vue'
-import Delete from '../icons/Delete.vue'
-import Edit from '../icons/Edit.vue'
-import Close from '../icons/Close.vue'
-import Save from '../icons/Save.vue'
+ import IconButton from '@/components/common/IconButton.vue'
+import Delete from '@/components/icons/Delete.vue'
+import Edit from '@/components/icons/Edit.vue'
+import Close from '@/components/icons/Close.vue'
+import Save from '@/components/icons/Save.vue'
 
 interface Props {
   bindKey?: string

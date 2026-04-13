@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import useDialog from '../../stores/dialog'
+import useDialog from '@/stores/dialog'
 import { useI18n } from 'vue-i18n'
-import useConnectionStore from '../../stores/connections'
-import { types } from '../../consts/support_redis_type'
+import useConnectionStore from '@/stores/connections'
+import { types } from '@/consts/support_redis_type'
 
 
 const i18n = useI18n()

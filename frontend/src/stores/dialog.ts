@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import useConnectionStore from './connections'
-import {ConnParam, ConnectionItem} from '../config/dbs';
+import useConnectionStore from '@/stores/connections'
+import { ConnParam, ConnectionItem } from '@/config/dbs'
 
 interface NewKeyParam {
     prefix: string

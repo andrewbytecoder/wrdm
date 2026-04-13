@@ -1,5 +1,5 @@
-import en from './en.json'
-import zh from './zh-cn.json'
+import en from '@/langs/en.json'
+import zh from '@/langs/zh-cn.json'
 
 export const lang = {
     en,

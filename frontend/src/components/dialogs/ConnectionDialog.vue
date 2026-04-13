@@ -2,13 +2,13 @@
 import { get, isEmpty, map } from 'lodash'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TestConnection } from '../../../wailsjs/go/services/connectionService.js'
-import useDialog from '../../stores/dialog'
+import { TestConnection } from '@wails/go/services/connectionService.js'
+import useDialog from '@/stores/dialog'
 import { useMessage, FormInst, FormRules, FormValidationError } from 'naive-ui'
-import Close from '../icons/Close.vue'
-import useConnectionStore from '../../stores/connections'
-import {types} from "../../../wailsjs/go/models";
-import {ConnectionItem} from '../../config/dbs'
+import Close from '@/components/icons/Close.vue'
+import useConnectionStore from '@/stores/connections'
+import { types } from '@wails/go/models'
+import { ConnectionItem } from '@/config/dbs'
 
 
 interface TestConnectionResponse {

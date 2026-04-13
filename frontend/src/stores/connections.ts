@@ -42,13 +42,13 @@ import {
     SetSetItem,
     UpdateSetItem,
     UpdateZSetValue,
-} from '../../wailsjs/go/services/connectionService.js'
-import { ConnectionType } from '../consts/connection_type'
-import useTabStore from './tab'
-import {types} from "../../wailsjs/go/models";
-import {ConnectionItem} from '../config/dbs'
-import key from "../components/icons/Key.vue";
-import { types as colorList, validType } from '../consts/support_redis_type'
+} from '@wails/go/services/connectionService.js'
+import { ConnectionType } from '@/consts/connection_type'
+import useTabStore from '@/stores/tab'
+import { types } from '@wails/go/models'
+import { ConnectionItem } from '@/config/dbs'
+import key from "@/components/icons/Key.vue";
+import { types as colorList, validType } from '@/consts/support_redis_type'
 
 // 数据库 每个redis 默认 16个数据库
 export interface DatabaseItem {

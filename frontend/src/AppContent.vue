@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import ContentPane from './components/content/ContentPane.vue'
-import BrowserPane from './components/sidebar/BrowserPane.vue'
+import ContentPane from '@/components/content/ContentPane.vue'
+import BrowserPane from '@/components/sidebar/BrowserPane.vue'
 import { computed, onBeforeUnmount, reactive } from 'vue'
 import { debounce, get } from 'lodash'
 import { useThemeVars } from 'naive-ui'
-import NavMenu from './components/sidebar/NavMenu.vue'
-import ConnectionPane from './components/sidebar/ConnectionPane.vue'
-import ContentServerPane from './components/content/ContentServerPane.vue'
-import useTabStore from './stores/tab'
-import usePreferencesStore from './stores/preferences'
-import useConnectionStore from './stores/connections'
-import ContentLogPane from './components/content/ContentLogPane.vue'
+import NavMenu from '@/components/sidebar/NavMenu.vue'
+import ConnectionPane from '@/components/sidebar/ConnectionPane.vue'
+import ContentServerPane from '@/components/content/ContentServerPane.vue'
+import useTabStore from '@/stores/tab'
+import usePreferencesStore from '@/stores/preferences'
+import useConnectionStore from '@/stores/connections'
+import ContentLogPane from '@/components/content/ContentLogPane.vue'
 
 
 // 定义响应式数据类型

@@ -2,10 +2,10 @@
 import { get, map, mapValues, pickBy, split, sum, toArray, toNumber } from 'lodash'
 import type { DataTableColumns, DataTableInst } from 'naive-ui'
 import { computed, reactive, ref } from 'vue'
-import Help from '../icons/Help.vue'
-import IconButton from '../common/IconButton.vue'
-import Filter from '../icons/Filter.vue'
-import Refresh from '../icons/Refresh.vue'
+import Help from '@/components/icons/Help.vue'
+import IconButton from '@/components/common/IconButton.vue'
+import Filter from '@/components/icons/Filter.vue'
+import Refresh from '@/components/icons/Refresh.vue'
 
 interface ServerStatus {
   server: string

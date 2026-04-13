@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { computed, h, ref, Ref } from 'vue'
 import { NIcon, useThemeVars, MenuOption, DropdownOption } from 'naive-ui'
-import ToggleDb from '../icons/ToggleDb.vue'
+import ToggleDb from '@/components/icons/ToggleDb.vue'
 import { useI18n } from 'vue-i18n'
-import ToggleServer from '../icons/ToggleServer.vue'
-import IconButton from '../common/IconButton.vue'
-import Help from '../icons/Help.vue'
-import Config from '../icons/Config.vue'
-import useDialogStore from '../../stores/dialog'
-import Github from '../icons/Github.vue'
-import { BrowserOpenURL } from '../../../wailsjs/runtime'
-import Log from '../icons/Log.vue'
-import useConnectionStore from '../../stores/connections'
-import Update from "../icons/Update.vue";
-import About from "../icons/About.vue";
-import { renderIcon } from '../../utils/render_model'
+import ToggleServer from '@/components/icons/ToggleServer.vue'
+import IconButton from '@/components/common/IconButton.vue'
+import Help from '@/components/icons/Help.vue'
+import Config from '@/components/icons/Config.vue'
+import useDialogStore from '@/stores/dialog'
+import Github from '@/components/icons/Github.vue'
+import { BrowserOpenURL } from '@wails/runtime'
+import Log from '@/components/icons/Log.vue'
+import useConnectionStore from '@/stores/connections'
+import Update from '@/components/icons/Update.vue'
+import About from '@/components/icons/About.vue'
+import { renderIcon } from '@/utils/render_model'
 
 // 类型定义
 type MenuItemKey = 'browser' | 'server' | 'preferences' | 'about' | 'update'

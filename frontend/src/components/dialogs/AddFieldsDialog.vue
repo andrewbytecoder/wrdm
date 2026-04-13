@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
-import { types } from '../../consts/support_redis_type'
-import useDialog from '../../stores/dialog'
-import NewStringValue from '../new_value/NewStringValue.vue'
-import NewSetValue from '../new_value/NewSetValue.vue'
-import useConnectionStore from '../../stores/connections'
+import { types } from '@/consts/support_redis_type'
+import useDialog from '@/stores/dialog'
+import NewStringValue from '@/components/new_value/NewStringValue.vue'
+import NewSetValue from '@/components/new_value/NewSetValue.vue'
+import useConnectionStore from '@/stores/connections'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
-import AddListValue from '../new_value/AddListValue.vue'
-import AddHashValue from '../new_value/AddHashValue.vue'
-import AddZSetValue from '../new_value/AddZSetValue.vue'
+import AddListValue from '@/components/new_value/AddListValue.vue'
+import AddHashValue from '@/components/new_value/AddHashValue.vue'
+import AddZSetValue from '@/components/new_value/AddZSetValue.vue'
 import type { Component } from 'vue'
 
 interface NewForm {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed} from "vue";
-import {typesBgColor, typesColor} from "../../consts/support_redis_type";
+import { typesBgColor, typesColor } from '@/consts/support_redis_type'
 
 
 interface Props {

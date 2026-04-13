@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, h, reactive, ref, Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ContentToolbar from './ContentToolbar.vue'
-import AddLink from '../icons/AddLink.vue'
+import ContentToolbar from '@/components/content_value/ContentToolbar.vue'
+import AddLink from '@/components/icons/AddLink.vue'
 import { NButton, NCode, NIcon, NInput, useMessage, DataTableColumn, DataTableRowKey } from 'naive-ui'
-import { types, types as redisTypes } from '../../consts/support_redis_type'
-import EditableTableColumn from '../common/EditableTableColumn.vue'
-import useConnectionStore from '../../stores/connections'
-import useDialogStore from '../../stores/dialog'
+import { types, types as redisTypes } from '@/consts/support_redis_type'
+import EditableTableColumn from '@/components/common/EditableTableColumn.vue'
+import useConnectionStore from '@/stores/connections'
+import useDialogStore from '@/stores/dialog'
 import type { PropType } from 'vue'
 import {stringLiteral} from "@babel/types";
 

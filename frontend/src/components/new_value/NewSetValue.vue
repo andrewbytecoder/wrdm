@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {compact, isEmpty, uniq} from 'lodash'
-import Add from '../icons/Add.vue'
-import Delete from '../icons/Delete.vue'
-import IconButton from '../common/IconButton.vue'
+import Add from '@/components/icons/Add.vue'
+import Delete from '@/components/icons/Delete.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import type { PropType } from 'vue'
 
 const props = defineProps({

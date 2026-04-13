@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ContentToolbar from './ContentToolbar.vue'
-import Copy from '../icons/Copy.vue'
-import Save from '../icons/Save.vue'
+import ContentToolbar from '@/components/content_value/ContentToolbar.vue'
+import Copy from '@/components/icons/Copy.vue'
+import Save from '@/components/icons/Save.vue'
 import { useMessage, useThemeVars } from 'naive-ui'
-import { types } from '../../consts/value_view_type'
-import Close from '../icons/Close.vue'
-import Edit from '../icons/Edit.vue'
-import { IsJson } from '../../utils/check_string_format'
-import { types as redisTypes } from '../../consts/support_redis_type'
-import { ClipboardSetText } from '../../../wailsjs/runtime'
+import { types } from '@/consts/value_view_type'
+import Close from '@/components/icons/Close.vue'
+import Edit from '@/components/icons/Edit.vue'
+import { IsJson } from '@/utils/check_string_format'
+import { types as redisTypes } from '@/consts/support_redis_type'
+import { ClipboardSetText } from '@wails/runtime'
 import { toLower } from 'lodash'
-import useConnectionStore from '../../stores/connections'
+import useConnectionStore from '@/stores/connections'
 
 interface ViewOption {
   value: string

@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
-import { lang } from '../langs'
+import { lang } from '@/langs'
 import { camelCase, clone, find, isEmpty, isObject, map, set, snakeCase, split } from 'lodash'
 import {
     GetFontList,
     GetPreferences,
     RestorePreferences,
     SetPreferences,
-} from '../../wailsjs/go/services/preferencesService'
+} from '@wails/go/services/preferencesService'
 import { useI18n } from 'vue-i18n'
 
 

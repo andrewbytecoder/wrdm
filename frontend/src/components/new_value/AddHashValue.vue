@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { flatMap, reject } from 'lodash'
-import Add from '../icons/Add.vue'
-import Delete from '../icons/Delete.vue'
-import IconButton from '../common/IconButton.vue'
+import Add from '@/components/icons/Add.vue'
+import Delete from '@/components/icons/Delete.vue'
+import IconButton from '@/components/common/IconButton.vue'
 import { useI18n } from 'vue-i18n'
 import type { PropType } from 'vue'
 
@@ -43,7 +43,7 @@ const modelValue = defineModel<Array<{ key: string; value: string }>>({
 })
 
 
-const kvList = reactive([{ key: '', value: '' }])
+const kvList = ref<Array<{ key: string; value: string }>>([{ key: '', value: '' }])
 
 
 const onUpdate = (val: Array<{ key: string; value: string }>) => {

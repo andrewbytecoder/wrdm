@@ -1,4 +1,4 @@
-import { ConnectionType } from "./connection_type";
+import { ConnectionType } from '@/consts/connection_type'
 import { useI18n } from 'vue-i18n'
 
 const i18n = useI18n()

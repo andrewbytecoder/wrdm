@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import useConnectionStore from '../../stores/connections'
-import { ConnectionType } from '../../consts/connection_type'
-import Close from '../icons/Close.vue'
+import useConnectionStore from '@/stores/connections'
+import { ConnectionType } from '@/consts/connection_type'
+import Close from '@/components/icons/Close.vue'
 import type { PropType } from 'vue'
 import { useThemeVars } from 'naive-ui'
 

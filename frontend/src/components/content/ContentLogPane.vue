@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onActivated, reactive, ref } from 'vue'
-import IconButton from '../common/IconButton.vue'
-import Refresh from '../icons/Refresh.vue'
-import useConnectionStore, { HistoryItem} from '../../stores/connections'
+import IconButton from '@/components/common/IconButton.vue'
+import Refresh from '@/components/icons/Refresh.vue'
+import useConnectionStore, { HistoryItem } from '@/stores/connections'
 import { map, uniqBy } from 'lodash'
 import { useI18n } from 'vue-i18n'
 import type { DataTableInst, DataTableColumn } from 'naive-ui'

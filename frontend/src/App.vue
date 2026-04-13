@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import ConnectionDialog from './components/dialogs/ConnectionDialog.vue'
-import NewKeyDialog from './components/dialogs/NewKeyDialog.vue'
-import PreferencesDialog from './components/dialogs/PreferencesDialog.vue'
-import RenameKeyDialog from './components/dialogs/RenameKeyDialog.vue'
-import SetTtlDialog from './components/dialogs/SetTtlDialog.vue'
+import ConnectionDialog from '@/components/dialogs/ConnectionDialog.vue'
+import NewKeyDialog from '@/components/dialogs/NewKeyDialog.vue'
+import PreferencesDialog from '@/components/dialogs/PreferencesDialog.vue'
+import RenameKeyDialog from '@/components/dialogs/RenameKeyDialog.vue'
+import SetTtlDialog from '@/components/dialogs/SetTtlDialog.vue'
 //  语言高亮配置
 import hljs from 'highlight.js/lib/core'
 import json from 'highlight.js/lib/languages/json'
 import plaintext from 'highlight.js/lib/languages/plaintext'
 import { NMessageProvider, NConfigProvider,GlobalThemeOverrides, NDialogProvider } from 'naive-ui'
-import AddFieldsDialog from './components/dialogs/AddFieldsDialog.vue'
-import AppContent from "./AppContent.vue";
-import GroupDialog from './components/dialogs/GroupDialog.vue'
-import DeleteKeyDialog from './components/dialogs/DeleteKeyDialog.vue'
+import AddFieldsDialog from '@/components/dialogs/AddFieldsDialog.vue'
+import AppContent from '@/AppContent.vue'
+import GroupDialog from '@/components/dialogs/GroupDialog.vue'
+import DeleteKeyDialog from '@/components/dialogs/DeleteKeyDialog.vue'
 import { computed, onBeforeMount, ref } from 'vue'
 import { get } from 'lodash'
-import usePreferencesStore from './stores/preferences'
-import useConnectionStore from './stores/connections'
+import usePreferencesStore from '@/stores/preferences'
+import useConnectionStore from '@/stores/connections'
 import { useI18n } from 'vue-i18n'
 import { darkTheme, lightTheme, useOsTheme } from 'naive-ui'
-import KeyFilterDialog from './components/dialogs/KeyFilterDialog.vue'
+import KeyFilterDialog from '@/components/dialogs/KeyFilterDialog.vue'
 
 
 hljs.registerLanguage('json', json)

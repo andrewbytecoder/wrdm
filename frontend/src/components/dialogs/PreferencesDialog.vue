@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import useDialog from '../../stores/dialog'
+import useDialog from '@/stores/dialog'
 import type { Ref } from 'vue'
-import usePreferencesStore from '../../stores/preferences'
+import usePreferencesStore from '@/stores/preferences'
 import { useMessage } from 'naive-ui'
-import {GetPreferences} from "../../../wailsjs/go/services/preferencesService";
+import { GetPreferences } from '@wails/go/services/preferencesService'
 
 const prefStore = usePreferencesStore()
 
