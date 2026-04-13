@@ -114,6 +114,7 @@ interface MenuOptions {
 //  Record<number, Function> 定义一个键值对，key为number，value为Function
 const menuOptions: MenuOptions = {
   [ConnectionType.Server]: () => {
+    console.log('open server context')
     return [
       {
         key: 'server_reload',
@@ -434,6 +435,13 @@ const onLoadTree = async (node: TreeNode) => {
         loading.value = false
       }
       break
+      // case ConnectionType.RedisKey:
+      //     console.warn('load redis key', node.redisKey)
+      //     node.keys = sumBy(node.children, 'keys')
+      //     break
+      // case ConnectionType.RedisValue:
+      //     node.keys = 1
+      //     break
   }
 }
 

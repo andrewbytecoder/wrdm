@@ -22,6 +22,12 @@ const onUpdate = (val: Array<{ key: string; value: string }>) => {
   )
 }
 
+defineExpose({
+  validate: () => {
+    return !isEmpty(props.value)
+  },
+})
+
 /**
  * @typedef Hash
  * @property {string} key
@@ -29,11 +35,6 @@ const onUpdate = (val: Array<{ key: string; value: string }>) => {
  */
 const kvList = ref([{ key: '', value: '' }])
 
-defineExpose({
-  validate: () => {
-    return !isEmpty(props.value)
-  },
-})
 
 </script>
 

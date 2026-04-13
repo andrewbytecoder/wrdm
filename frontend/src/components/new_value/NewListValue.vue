@@ -19,18 +19,16 @@ const emit = defineEmits<{
 
 const list = ref<string[]>([''])
 
-const onUpdate = (val: string[]) => {
-  val = compact(val)
-  emit('update:value', val)
-}
-
-
 defineExpose({
   validate: () => {
     return !isEmpty(props.value)
   },
 })
 
+const onUpdate = (val: string[]) => {
+  val = compact(val)
+  emit('update:value', val)
+}
 </script>
 
 <template>

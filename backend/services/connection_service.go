@@ -577,10 +577,11 @@ func (c *ConnectionService) SetKeyValue(connName string, db int, key, keyType st
 			_, err = rdb.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 				var members []redis.Z
 				for i := 0; i < len(strs); i += 2 {
-					score, _ := strconv.ParseFloat(strs[i].(string), 64)
+
+					score, _ := strconv.ParseFloat(strs[i+1].(string), 64)
 					members = append(members, redis.Z{
-						Member: score,
-						Score:  strs[i+1].(float64),
+						Score:  score,
+						Member: strs[i],
 					})
 				}
 

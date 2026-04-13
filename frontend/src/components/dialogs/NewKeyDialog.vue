@@ -95,6 +95,7 @@ watch(
         newForm.key = isEmpty(prefix) ? '' : prefix
         newForm.type = options.value[0].value
         newForm.ttl = -1
+        newForm.db = db
         newForm.value = null
       }
     }
@@ -103,7 +104,6 @@ watch(
 const connectionStore = useConnectionStore()
 
 const onAdd = async () => {
-  // 校验数据是否合法
   await newFormRef.value?.validate().catch((err) => {
     message.error(err.message)
   })
@@ -112,11 +112,13 @@ const onAdd = async () => {
     return false
   }
 
+  // 校验数据是否合法
   await newFormRef.value?.validate((errors) => {
     if (!errors) {
       message.success('Valid')
     }
     else {
+      console.log(errors)
       message.error('Invalid')
     }
   })
@@ -125,9 +127,12 @@ const onAdd = async () => {
     //  将对应的数据取出
     const { server, db, key, type, ttl } = newForm
     let { value } = newForm
+    console.log("--------", newForm.value)
     if (value == null) {
       value = defaultValue[type]
     }
+    console.log("--------", newForm.value)
+    console.log("--------", value)
     const { success, msg } = await connectionStore.setKey(server, db, key, type, value, ttl)
     if (success) {
       dialogStore.closeNewKeyDialog()
