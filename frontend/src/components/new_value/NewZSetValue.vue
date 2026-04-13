@@ -45,11 +45,6 @@ const onUpdate = (): void => {
   )
 }
 
-defineExpose({
-  validate: () => {
-    return !isEmpty(props.value)
-  },
-})
 
 </script>
 
