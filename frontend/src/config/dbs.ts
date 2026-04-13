@@ -18,13 +18,10 @@ export interface ConnectionItem   {
     // -- from Connection
     key: string
     label: string
-    db?: number
-    keys?: number
     connected?: boolean
     opened?: boolean
     expanded?: boolean
     isLeaf?: boolean
-    redisKey?: string
     connections?: ConnectionItem[]
 }
 
@@ -46,13 +43,10 @@ export class ConnParam implements ConnectionItem {
     // -- from Connection
     key: string
     label: string
-    db?: number
-    keys?: number
     connected?: boolean
     opened?: boolean
     expanded?: boolean
     isLeaf?: boolean
-    redisKey?: string
     connections?: ConnectionItem[]
 
     constructor(name: string, group: string, key:string,label:string, addr?: string, port?: number,

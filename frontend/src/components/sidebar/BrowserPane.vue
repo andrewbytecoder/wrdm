@@ -20,7 +20,7 @@ import useConnectionStore from '@/stores/connections'
 const themeVars = useThemeVars()
 const dialogStore = useDialogStore()
 const tabStore = useTabStore()
-const currentName = computed((): string => get(tabStore.currentTab, 'name', ''))
+const currentName = computed((): string => get(tabStore.currentTab, 'server', '') || get(tabStore.currentTab, 'name', ''))
 
 /**
  *

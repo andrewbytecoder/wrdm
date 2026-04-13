@@ -250,6 +250,7 @@ func (e *EtcdService) ListKeys(name string, prefix string, limit int64, rangeEnd
 		resp.Msg = err.Error()
 		return
 	}
+	runtime.LogDebug(e.ctx, fmt.Sprintf("ListKeys name=%s prefix=%q limit=%d rangeEnd=%q keysOnly=%v", name, prefix, limit, rangeEnd, keysOnly))
 	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
 	defer cancel()
 
@@ -279,6 +280,7 @@ func (e *EtcdService) ListKeys(name string, prefix string, limit int64, rangeEnd
 		resp.Msg = err.Error()
 		return
 	}
+	runtime.LogDebug(e.ctx, fmt.Sprintf("ListKeys result count=%d more=%v revision=%d", gr.Count, gr.More, gr.Header.Revision))
 
 	items := make([]KVItem, 0, len(gr.Kvs))
 	for _, kv := range gr.Kvs {

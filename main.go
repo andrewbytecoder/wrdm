@@ -18,7 +18,6 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 	//connections := storage.NewConnections()
-	connSvc := services.Connection()
 	etcdSvc := services.Etcd()
 
 	prefSvc := services.Preferences()
@@ -38,12 +37,10 @@ func main() {
 		},
 		OnShutdown: func(ctx context.Context) {
 			etcdSvc.Stop(ctx)
-			connSvc.Stop(ctx)
 		},
 		Bind: []interface{}{
 			app,
 			// connections
-			connSvc,
 			etcdSvc,
 			prefSvc,
 		},

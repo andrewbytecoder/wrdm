@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, nextTick, reactive, ref } from 'vue'
+import { computed, h, nextTick, reactive, ref, watch } from 'vue'
 import { NIcon, NSpace, useMessage, TreeOption, DropdownOption } from 'naive-ui'
 import ToggleServer from '@/components/icons/ToggleServer.vue'
 import KeyIcon from '@/components/icons/Key.vue'
@@ -51,13 +51,22 @@ const loading = ref(false)
 const expandedKeys = ref<string[]>([props.server])
 const selectedKeys = ref<string[]>([props.server])
 
+watch(
+  () => props.server,
+  (server) => {
+    expandedKeys.value = server ? [server] : []
+    selectedKeys.value = server ? [server] : []
+  },
+  { immediate: true }
+)
+
 const rootNode = computed<EtcdTreeNode>(() => ({
   key: props.server,
   label: props.server,
   type: 'server',
   server: props.server,
   isLeaf: false,
-  children: [],
+  children: undefined,
 }))
 
 const data = computed<EtcdTreeNode[]>(() => [rootNode.value])
@@ -129,7 +138,7 @@ const buildChildren = (prefix: string, keys: string[]): EtcdTreeNode[] => {
         server: props.server,
         pathPrefix: p,
         isLeaf: false,
-        children: [],
+        children: undefined,
       }
     })
 
@@ -197,6 +206,10 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
 const onLoadTree = async (node: EtcdTreeNode) => {
   loading.value = true
   try {
+    if (!props.server) {
+      message.error('BrowserTree: empty server')
+      return
+    }
     if (!connectionStore.isConnected(props.server)) {
       await connectionStore.openConnection(props.server, false)
     }
@@ -205,6 +218,9 @@ const onLoadTree = async (node: EtcdTreeNode) => {
     const res = await connectionStore.listKeys(props.server, prefix, node.type === 'server' ? 1000 : 2000, '', true)
     const keys = (res.kvs || []).map((k) => k.key)
     node.children = buildChildren(prefix, keys)
+    if (!node.children || (Array.isArray(node.children) && node.children.length === 0)) {
+      message.warning(`No keys under prefix "${prefix}" (count=${res.count ?? 0})`)
+    }
   } catch (e: any) {
     message.error(e.message)
   } finally {
@@ -307,13 +323,13 @@ const handleSelectContextMenu = (actionKey: string) => {
       :expand-on-click="false"
       :expanded-keys="expandedKeys"
       :selected-keys="selectedKeys"
+      :on-load="onLoadTree"
       :node-props="nodeProps"
       :render-label="renderLabel"
       :render-prefix="renderPrefix"
       :render-suffix="renderSuffix"
       class="fill-height"
       virtual-scroll
-      @load="onLoadTree"
       @update:selected-keys="onUpdateSelectedKeys"
       @update:expanded-keys="onUpdateExpandedKeys"
     />

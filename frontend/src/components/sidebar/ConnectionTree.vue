@@ -31,8 +31,6 @@ interface ContextMenuParam {
 interface ExtendedTreeOption extends TreeOption  {
   type: number
   name: string
-  db?: number
-  redisKey?: string
 }
 
 export interface DropOption {
@@ -268,7 +266,7 @@ const renderContextLabel = (option: TreeSelectOption) => {
 
 const handleSelectContextMenu = (key: string) => {
   contextMenuParam.show = false
-  const { name, label, db, key: nodeKey, redisKey } = contextMenuParam.currentNode as ExtendedTreeOption
+  const { name, label } = contextMenuParam.currentNode as ExtendedTreeOption
   switch (key) {
     case 'server_open':
       openConnection(name!).then(() => {})
