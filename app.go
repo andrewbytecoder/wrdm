@@ -22,6 +22,7 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	services.Connection().Start(ctx)
+	services.Etcd().Start(ctx)
 }
 
 // Greet returns a greeting for the given name

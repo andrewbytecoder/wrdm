@@ -1,139 +1,80 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import useDialog from '@/stores/dialog'
+import useConnectionStore from '@/stores/connections'
 import { useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
-import useConnectionStore from '@/stores/connections'
-import { isEmpty, size } from 'lodash'
-
 
 interface DeleteForm {
-    server: string
-    db: number
-    key: string
-    showAffected: boolean
-    loadingAffected: boolean
-    affectedKeys: string[]
+  server: string
+  key: string
+  withPrefix: boolean
 }
 
 const deleteForm = reactive<DeleteForm>({
-    server: '',
-    db: 0,
-    key: '',
-    showAffected: false,
-    loadingAffected: false,
-    affectedKeys: [],
+  server: '',
+  key: '',
+  withPrefix: false,
 })
 
 const dialogStore = useDialog()
 const connectionStore = useConnectionStore()
-watch(
-    () => dialogStore.deleteKeyDialogVisible,
-    (visible) => {
-        if (visible) {
-            const { server, db, key } = dialogStore.deleteKeyParam
-            deleteForm.server = server
-            deleteForm.db = db
-            deleteForm.key = key
-            deleteForm.showAffected = false
-            deleteForm.loadingAffected = false
-            deleteForm.affectedKeys = []
-        }
-    }
-)
-
-const scanAffectedKey = async () => {
-    try {
-        deleteForm.loadingAffected = true
-        const { keys = [] } = await connectionStore.scanKeys(deleteForm.server, deleteForm.db, deleteForm.key)
-        deleteForm.affectedKeys = keys || []
-        deleteForm.showAffected = true
-    } finally {
-        deleteForm.loadingAffected = false
-    }
-}
-
-const resetAffected = () => {
-    deleteForm.showAffected = false
-    deleteForm.affectedKeys = []
-}
-
 const i18n = useI18n()
 const message = useMessage()
+
+watch(
+  () => dialogStore.deleteKeyDialogVisible,
+  (visible) => {
+    if (!visible) return
+    const { server, key } = dialogStore.deleteKeyParam
+    deleteForm.server = server
+    deleteForm.key = key
+    deleteForm.withPrefix = false
+  }
+)
+
 const onConfirmDelete = async () => {
-    try {
-        const { server, db, key } = deleteForm
-        const success = await connectionStore.deleteKeyPrefix(server, db, key)
-        if (success) {
-            message.success(i18n.t('handle_succ'))
-        }
-    } catch (e) {
-      // 安全地处理错误：e 可能不是 Error 类型
-      if (e instanceof Error) {
-        message.error(e.message);
-      } else {
-        message.error(String(e));
-      }
-    }
-    dialogStore.closeDeleteKeyDialog()
+  try {
+    await connectionStore.deleteKey(deleteForm.server, deleteForm.key, deleteForm.withPrefix)
+    message.success(i18n.t('handle_succ'))
+  } catch (e: any) {
+    message.error(e.message)
+  }
+  dialogStore.closeDeleteKeyDialog()
 }
 
-const onClose = () => {
-    dialogStore.closeDeleteKeyDialog()
-}
+const onClose = () => dialogStore.closeDeleteKeyDialog()
 </script>
 
 <template>
-    <n-modal
-        v-model:show="dialogStore.deleteKeyDialogVisible"
-        :closable="false"
-        :close-on-esc="false"
-        :mask-closable="false"
-        :show-icon="false"
-        :title="$t('batch_delete_key')"
-        preset="dialog"
-        transform-origin="center"
-    >
-        <n-form
-            :model="deleteForm"
-            :show-require-mark="false"
-            label-align="right"
-            label-placement="left"
-            label-width="auto"
-        >
-            <n-form-item :label="$t('server')">
-                <n-input :value="deleteForm.server" readonly />
-            </n-form-item>
-            <n-form-item :label="$t('db_index')">
-                <n-input :value="deleteForm.db.toString()" readonly />
-            </n-form-item>
-            <n-form-item :label="$t('key_expression')" required>
-                <n-input v-model:value="deleteForm.key" placeholder="" @input="resetAffected" />
-            </n-form-item>
-            <n-card v-if="deleteForm.showAffected" :title="$t('affected_key')" size="small">
-                <n-skeleton v-if="deleteForm.loadingAffected" text :repeat="10" />
-                <n-log
-                    v-else
-                    :rows="10"
-                    :line-height="1.5"
-                    :lines="deleteForm.affectedKeys"
-                    style="user-select: text; cursor: text"
-                />
-            </n-card>
-        </n-form>
+  <n-modal
+    v-model:show="dialogStore.deleteKeyDialogVisible"
+    :closable="false"
+    :close-on-esc="false"
+    :mask-closable="false"
+    :show-icon="false"
+    :title="$t('remove_key')"
+    preset="dialog"
+    transform-origin="center"
+  >
+    <n-form :model="deleteForm" :show-require-mark="false" label-align="right" label-placement="left" label-width="auto">
+      <n-form-item :label="$t('server')">
+        <n-input :value="deleteForm.server" readonly />
+      </n-form-item>
+      <n-form-item :label="$t('key')" required>
+        <n-input v-model:value="deleteForm.key" />
+      </n-form-item>
+      <n-form-item label="Prefix">
+        <n-switch v-model:value="deleteForm.withPrefix" />
+      </n-form-item>
+    </n-form>
 
-        <template #action>
-            <div class="flex-item n-dialog__action">
-                <n-button @click="onClose">{{ $t('cancel') }}</n-button>
-                <n-button v-if="!deleteForm.showAffected" type="primary" @click="scanAffectedKey">
-                    {{ $t('show_affected_key') }}
-                </n-button>
-                <n-button v-else type="error" :disabled="isEmpty(deleteForm.affectedKeys)" @click="onConfirmDelete">
-                    {{ $t('confirm_delete_key', { num: size(deleteForm.affectedKeys) }) }}
-                </n-button>
-            </div>
-        </template>
-    </n-modal>
+    <template #action>
+      <div class="flex-item n-dialog__action">
+        <n-button @click="onClose">{{ $t('cancel') }}</n-button>
+        <n-button type="error" @click="onConfirmDelete">{{ $t('confirm') }}</n-button>
+      </div>
+    </template>
+  </n-modal>
 </template>
 
-<style lang="scss" scoped></style>

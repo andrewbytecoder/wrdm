@@ -10,7 +10,6 @@ import Config from '@/components/icons/Config.vue'
 import useDialogStore from '@/stores/dialog'
 import Github from '@/components/icons/Github.vue'
 import { BrowserOpenURL } from '@wails/runtime'
-import Log from '@/components/icons/Log.vue'
 import useConnectionStore from '@/stores/connections'
 import Update from '@/components/icons/Update.vue'
 import About from '@/components/icons/About.vue'
@@ -63,11 +62,6 @@ const menuOptions = computed<MenuOption[]>(() => {
       key: 'server',
       icon: renderIcon(ToggleServer),
     },
-      {
-        label: i18n.t('log'),
-        key: 'log',
-        icon: renderIcon(Log),
-      },
   ]
 })
 

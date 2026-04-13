@@ -19,6 +19,7 @@ func main() {
 	app := NewApp()
 	//connections := storage.NewConnections()
 	connSvc := services.Connection()
+	etcdSvc := services.Etcd()
 
 	prefSvc := services.Preferences()
 	// Create application with options
@@ -36,11 +37,14 @@ func main() {
 			app.startup(ctx)
 		},
 		OnShutdown: func(ctx context.Context) {
+			etcdSvc.Stop(ctx)
+			connSvc.Stop(ctx)
 		},
 		Bind: []interface{}{
 			app,
 			// connections
 			connSvc,
+			etcdSvc,
 			prefSvc,
 		},
 		Mac: &mac.Options{

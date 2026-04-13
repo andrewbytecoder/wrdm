@@ -2,7 +2,6 @@
 import { get, isEmpty, map } from 'lodash'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TestConnection } from '@wails/go/services/connectionService.js'
 import useDialog from '@/stores/dialog'
 import { useMessage, FormInst, FormRules, FormValidationError } from 'naive-ui'
 import Close from '@/components/icons/Close.vue'
@@ -22,15 +21,22 @@ const generalFormValue: ConnectionItem = {
   group: '',
   name: '',
   addr: '127.0.0.1',
-  port: 6379,
+  port: 2379,
   username: '',
   password: '',
-  defaultFilter: '*',
-  keySeparator: ':',
+  defaultFilter: '',
+  keySeparator: '/',
   connTimeout: 60,
   execTimeout: 60,
   markColor: ''
 }
+
+const newDefaultForm = (): ConnectionItem => ({
+  ...generalFormValue,
+  // ensure new object references
+  key: '',
+  label: '',
+})
 
 /**
  * Dialog for create or edit connection
@@ -49,7 +55,6 @@ const generalFormRules = (): FormRules => {
   return {
     name: { required: true, message: requiredMsg, trigger: 'input' },
     addr: { required: true, message: requiredMsg, trigger: 'input' },
-    defaultFilter: { required: true, message: requiredMsg, trigger: 'input' },
     keySeparator: { required: true, message: requiredMsg, trigger: 'input' },
   }
 }
@@ -133,7 +138,7 @@ const onSaveConnection = async () => {
 
 // 刚进来将所有值按照初始化进行设置
 const resetForm = () => {
-    generalForm.value = connectionStore.newDefaultConnection("")
+    generalForm.value = newDefaultForm()
     generalFormRef.value?.restoreValidation()
     showTestResult.value = false
     testResult.value = ''
@@ -158,7 +163,12 @@ const onTestConnection = async () => {
     let result = ''
     try {
       const { addr, port, username, password } = generalForm.value
-      const { success = false, msg } = await TestConnection(addr as string, port as number, username as string, password as string)
+      const { success = false, msg } = await connectionStore.testConnection(
+        addr as string,
+        port as number,
+        username as string,
+        password as string
+      )
       if (!success) {
         result = msg
       }

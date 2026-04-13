@@ -1,212 +1,113 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { types } from '@/consts/support_redis_type'
 import useDialog from '@/stores/dialog'
-import { isEmpty, keys, map } from 'lodash'
-import NewStringValue from '@/components/new_value/NewStringValue.vue'
-import NewHashValue from '@/components/new_value/NewHashValue.vue'
-import NewListValue from '@/components/new_value/NewListValue.vue'
-import NewZSetValue from '@/components/new_value/NewZSetValue.vue'
-import NewSetValue from '@/components/new_value/NewSetValue.vue'
 import useConnectionStore from '@/stores/connections'
 import { useI18n } from 'vue-i18n'
-import { useMessage, FormInst, FormRules, FormItemRule } from 'naive-ui'
-import type { Component } from 'vue'
+import { useMessage, FormInst, FormRules } from 'naive-ui'
 
 interface NewForm {
   server: string
-  db: number
   key: string
-  type: string
-  ttl: number
-  value: any
-}
-
-interface Option {
   value: string
-  label: string
-}
-
-const i18n = useI18n()
-const message = useMessage()
-
-const newForm = reactive<NewForm>({
-  server: '',
-  db: 0,
-  key: '',
-  type: '',
-  ttl: -1,
-  value: null,
-})
-
-const formRules = computed<FormRules>(() => {
-  const requiredMsg = i18n.t('field_required')
-  return {
-    key: { required: true, message: requiredMsg, trigger: 'input' },
-    type: { required: true, message: requiredMsg, trigger: 'input' },
-    ttl: { required: true, message: requiredMsg, trigger: 'input' },
-  }
-})
-const dbOptions = computed(() =>
-    map(keys(connectionStore.databases[newForm.server]), (key) => ({
-      label: key,
-      value: parseInt(key),
-    }))
-)
-
-// 表单数据合法验证工具
-const newFormRef = ref<FormInst | null>(null)
-const subFormRef = ref<FormInst | null>(null)
-
-const formLabelWidth = '100px'
-
-const options = computed<Option[]>(() => {
-  return Object.keys(types).map((t) => ({
-    value: t,
-    label: t,
-  }))
-})
-
-const addValueComponent: Record<string, Component> = {
-  [types.STRING]: NewStringValue,
-  [types.HASH]: NewHashValue,
-  [types.LIST]: NewListValue,
-  [types.SET]: NewSetValue,
-  [types.ZSET]: NewZSetValue,
-}
-
-const defaultValue: Record<string, any> = {
-  [types.STRING]: '',
-  [types.HASH]: [],
-  [types.LIST]: [],
-  [types.SET]: [],
-  [types.ZSET]: [],
+  ttl: number // seconds, -1 means no lease
 }
 
 const dialogStore = useDialog()
+const connectionStore = useConnectionStore()
+const i18n = useI18n()
+const message = useMessage()
+
+const form = reactive<NewForm>({
+  server: '',
+  key: '',
+  value: '',
+  ttl: -1,
+})
+
+const formRef = ref<FormInst | null>(null)
+
+const rules = computed<FormRules>(() => {
+  const requiredMsg = i18n.t('field_required')
+  return {
+    key: { required: true, message: requiredMsg, trigger: 'input' },
+  }
+})
 
 watch(
-    () => dialogStore.newKeyDialogVisible,
-    (visible) => {
-      if (visible) {
-        const { prefix, server, db } = dialogStore.newKeyParam
-        newForm.server = server
-        newForm.db = db
-        newForm.key = isEmpty(prefix) ? '' : prefix
-        newForm.type = options.value[0].value
-        newForm.ttl = -1
-        newForm.db = db
-        newForm.value = null
-      }
-    }
+  () => dialogStore.newKeyDialogVisible,
+  (visible) => {
+    if (!visible) return
+    const { prefix, server } = dialogStore.newKeyParam
+    form.server = server
+    form.key = prefix || ''
+    form.value = ''
+    form.ttl = -1
+  }
 )
 
-const connectionStore = useConnectionStore()
+const toBase64 = (s: string): string => {
+  const bytes = new TextEncoder().encode(s)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  return btoa(bin)
+}
 
-const onAdd = async () => {
-  await newFormRef.value?.validate().catch((err) => {
-    message.error(err.message)
-  })
-  if (subFormRef.value?.validate && !subFormRef.value?.validate()) {
-    message.error(i18n.t('spec_field_required', { key: i18n.t('element') }))
-    return false
-  }
-
-  // 校验数据是否合法
-  await newFormRef.value?.validate((errors) => {
-    if (!errors) {
-      message.success('Valid')
-    }
-    else {
-      console.log(errors)
-      message.error('Invalid')
-    }
-  })
-
+const onConfirm = async () => {
+  await formRef.value?.validate()
   try {
-    //  将对应的数据取出
-    const { server, db, key, type, ttl } = newForm
-    let { value } = newForm
-    console.log("--------", newForm.value)
-    if (value == null) {
-      value = defaultValue[type]
+    let leaseId = 0
+    if (form.ttl > 0) {
+      const lease = await connectionStore.grantLease(form.server, form.ttl)
+      leaseId = lease.id
     }
-    console.log("--------", newForm.value)
-    console.log("--------", value)
-    const { success, msg } = await connectionStore.setKey(server, db, key, type, value, ttl)
-    if (success) {
-      dialogStore.closeNewKeyDialog()
-    } else {
-      message.error(msg || i18n.t('handle_fail'))
-    }
+    await connectionStore.putKV(form.server, form.key, toBase64(form.value), leaseId)
+    message.success(i18n.t('handle_succ'))
+    dialogStore.closeNewKeyDialog()
   } catch (e: any) {
     message.error(e.message)
   }
 }
 
-const onClose = () => {
-  dialogStore.closeNewKeyDialog()
-}
+const onClose = () => dialogStore.closeNewKeyDialog()
 </script>
 
 <template>
   <n-modal
-      v-model:show="dialogStore.newKeyDialogVisible"
-      :closable="false"
-      :close-on-esc="false"
-      :mask-closable="false"
-      :negative-button-props="{ size: 'medium' }"
-      :negative-text="$t('cancel')"
-      :positive-button-props="{ size: 'medium' }"
-      :positive-text="$t('confirm')"
-      :show-icon="false"
-      :title="$t('new_key')"
-      preset="dialog"
-      style="width: 600px"
-      transform-origin="center"
-      @positive-click="onAdd"
-      @negative-click="onClose"
+    v-model:show="dialogStore.newKeyDialogVisible"
+    :closable="false"
+    :close-on-esc="false"
+    :mask-closable="false"
+    :negative-text="$t('cancel')"
+    :positive-text="$t('confirm')"
+    :show-icon="false"
+    :title="$t('new_key')"
+    preset="dialog"
+    style="width: 600px"
+    transform-origin="center"
+    @positive-click="onConfirm"
+    @negative-click="onClose"
   >
-    <n-scrollbar style="max-height: 500px">
-      <n-form
-          ref="newFormRef"
-          :label-width="formLabelWidth"
-          :model="newForm"
-          :rules="formRules"
-          :show-require-mark="false"
-          label-align="right"
-          label-placement="left"
-          style="padding-right: 15px"
-      >
-        <n-form-item :label="$t('key')" path="key" required>
-          <n-input v-model:value="newForm.key" placeholder="" />
-        </n-form-item>
-        <n-form-item :label="$t('db_index')" path="db" required>
-          <n-select v-model:value="newForm.db" :options="dbOptions" />
-        </n-form-item>
-        <n-form-item :label="$t('type')" path="type" required>
-          <n-select v-model:value="newForm.type" :options="options" />
-        </n-form-item>
-        <n-form-item :label="$t('ttl')" required>
-          <n-input-group>
-            <n-input-number
-                v-model:value="newForm.ttl"
-                :max="Number.MAX_SAFE_INTEGER"
-                :min="-1"
-                placeholder="TTL"
-            >
-              <template #suffix>
-                {{ $t('second') }}
-              </template>
-            </n-input-number>
-            <n-button secondary type="primary" @click="newForm.ttl = -1">{{ $t('persist_key') }}</n-button>
-          </n-input-group>
-        </n-form-item>
-        <component ref="subFormRef" :is="addValueComponent[newForm.type]" v-model:value="newForm.value" />
-        <!--  TODO: Add import from txt file option -->
-      </n-form>
-    </n-scrollbar>
+    <n-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      :show-require-mark="false"
+      label-align="right"
+      label-placement="left"
+      label-width="100px"
+    >
+      <n-form-item :label="$t('key')" path="key" required>
+        <n-input v-model:value="form.key" />
+      </n-form-item>
+      <n-form-item label="TTL">
+        <n-input-number v-model:value="form.ttl" :min="-1" :max="Number.MAX_SAFE_INTEGER">
+          <template #suffix>{{ $t('second') }}</template>
+        </n-input-number>
+      </n-form-item>
+      <n-form-item :label="$t('value')">
+        <n-input v-model:value="form.value" type="textarea" :resizable="false" />
+      </n-form-item>
+    </n-form>
   </n-modal>
 </template>
 
-<style lang="scss" scoped></style>

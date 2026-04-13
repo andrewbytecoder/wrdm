@@ -1,558 +1,332 @@
 <script setup lang="ts">
-import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
-import { ConnectionType } from '@/consts/connection_type'
-import { NIcon, NTag, NSpace, useDialog, useMessage, TreeOption, DropdownOption } from 'naive-ui'
-import Key from '@/components/icons/Key.vue'
-import ToggleDb from '@/components/icons/ToggleDb.vue'
-import { get, indexOf, isEmpty, remove } from 'lodash'
-import { useI18n } from 'vue-i18n'
-import Refresh from '@/components/icons/Refresh.vue'
-import CopyLink from '@/components/icons/CopyLink.vue'
-import Add from '@/components/icons/Add.vue'
-import Layer from '@/components/icons/Layer.vue'
-import Delete from '@/components/icons/Delete.vue'
-import Connect from '@/components/icons/Connect.vue'
-import useDialogStore from '@/stores/dialog'
-import { ClipboardSetText } from '@wails/runtime'
-import useConnectionStore from '@/stores/connections'
-import { renderIcon } from '@/utils/render_model'
-import { useConfirmDialog } from '@/utils/confirm_dialog'
+import { computed, h, nextTick, reactive, ref } from 'vue'
+import { NIcon, NSpace, useMessage, TreeOption, DropdownOption } from 'naive-ui'
 import ToggleServer from '@/components/icons/ToggleServer.vue'
-import Unlink from '@/components/icons/Unlink.vue'
-import Filter from '@/components/icons/Filter.vue'
-import Close from '@/components/icons/Close.vue'
-import { typesColor, typesBgColor } from '@/consts/support_redis_type'
-import {VNode} from "@vue/runtime-core";
+import KeyIcon from '@/components/icons/Key.vue'
+import LayerIcon from '@/components/icons/Layer.vue'
+import Add from '@/components/icons/Add.vue'
+import CopyLink from '@/components/icons/CopyLink.vue'
+import Delete from '@/components/icons/Delete.vue'
+import useDialogStore from '@/stores/dialog'
+import useConnectionStore from '@/stores/connections'
+import { useI18n } from 'vue-i18n'
+import { ClipboardSetText } from '@wails/runtime'
+import { useConfirmDialog } from '@/utils/confirm_dialog'
+import { renderIcon } from '@/utils/render_model'
+import useTabStore from '@/stores/tab'
 
-// 定义节点类型
-interface TreeNode {
-  key: string
-  label: string
-  type: ConnectionType
-  db?: number
-  name?: string
-  opened?: boolean
-  expanded?: boolean
-  keys?: number
+type NodeType = 'server' | 'prefix' | 'key'
+
+type EtcdTreeNode = TreeOption & {
+  type: NodeType
+  server: string
+  pathPrefix?: string
+  keyPath?: string
   isLeaf?: boolean
-  children?: TreeNode[]
-  redisKey?: string
 }
 
 interface Props {
   server: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  server: ''
-})
+const props = withDefaults(defineProps<Props>(), { server: '' })
+const connectionStore = useConnectionStore()
+const dialogStore = useDialogStore()
+const tabStore = useTabStore()
+const i18n = useI18n()
+const message = useMessage()
+const confirmDialog = useConfirmDialog()
+
 const backgroundColor = computed(() => {
   const { markColor: hex = '' } = connectionStore.serverProfile[props.server] || {}
-  if (isEmpty(hex)) {
-    return ''
-  }
+  if (!hex) return ''
   const bigint = parseInt(hex.slice(1), 16)
   const r = (bigint >> 16) & 255
   const g = (bigint >> 8) & 255
   const b = bigint & 255
   return `rgba(${r}, ${g}, ${b}, 0.2)`
 })
-// 当上面菜单打开的时候，将对应的数据都保存一份，这样在弹出的菜单中能获取到数据
+
+const loading = ref(false)
+const expandedKeys = ref<string[]>([props.server])
+const selectedKeys = ref<string[]>([props.server])
+
+const rootNode = computed<EtcdTreeNode>(() => ({
+  key: props.server,
+  label: props.server,
+  type: 'server',
+  server: props.server,
+  isLeaf: false,
+  children: [],
+}))
+
+const data = computed<EtcdTreeNode[]>(() => [rootNode.value])
+
 interface DropDownMenuParam {
   show: boolean
-  x: number   // 英语记录鼠标位置在那个地弹出下拉框
+  x: number
   y: number
   options: any[] | null
-  currentNode: TreeOption | null
+  currentNode: any | null
 }
-
-interface ExtendedTreeOption extends TreeOption {
-  type: number
-  name?: string
-  db?: number
-  key?: string
-  redisKey?: string
-  opened?: boolean
-  keys?: number
-  expanded?: boolean
-}
-
-const i18n = useI18n()
-const loading = ref(false)
-const loadingConnections = ref(false)
-const expandedKeys = ref<(string)[]>([props.server])
-const selectedKeys = ref<(string)[]>([props.server])
-const connectionStore = useConnectionStore()
-const dialogStore = useDialogStore()
-
-const data = computed<TreeNode[]>(() => {
-  // 根据传入的server，返回对应的数据
-  const dbs = get(connectionStore.databases, props.server, [])
-  return [
-    {
-      key: props.server,
-      label: props.server,
-      type: ConnectionType.Server,
-      children: dbs,
-    },
-  ]
-})
 
 const contextMenuParam = reactive<DropDownMenuParam>({
   show: false,
   x: 0,
   y: 0,
-  options: null as DropdownOption[] | null,
+  options: null,
   currentNode: null,
 })
 
-
-interface MenuOptions {
-  [key: number]: (option: TreeOption) => DropdownOption[]
+const menuOptions = (node: any): any[] => {
+  switch (node.type) {
+    case 'server':
+      return [
+        { key: 'server_reload', label: i18n.t('reload'), icon: renderIcon(ToggleServer) },
+        { key: 'server_close', label: i18n.t('disconnect'), icon: renderIcon(Delete) },
+      ]
+    case 'prefix':
+      return [
+        { key: 'prefix_newkey', label: i18n.t('new_key'), icon: renderIcon(Add) },
+        { key: 'prefix_copy', label: i18n.t('copy_path'), icon: renderIcon(CopyLink) },
+        { type: 'divider', key: 'd1' },
+        { key: 'prefix_remove', label: i18n.t('remove_path'), icon: renderIcon(Delete) },
+      ]
+    case 'key':
+    default:
+      return [
+        { key: 'key_copy', label: i18n.t('copy_key'), icon: renderIcon(CopyLink) },
+        { type: 'divider', key: 'd1' },
+        { key: 'key_remove', label: i18n.t('remove_key'), icon: renderIcon(Delete) },
+      ]
+  }
 }
 
-//  Record<number, Function> 定义一个键值对，key为number，value为Function
-const menuOptions: MenuOptions = {
-  [ConnectionType.Server]: () => {
-    console.log('open server context')
-    return [
-      {
-        key: 'server_reload',
-        label: i18n.t('reload'),
-        icon: renderIcon(Refresh),
-      },
-      {
-        key: 'server_close',
-        label: i18n.t('disconnect'),
-        icon: renderIcon(Unlink),
-      },
-    ]
-  },
-  [ConnectionType.RedisDB]: ({opened}: TreeOption) => {
-    if (opened) {
-      return [
-        {
-          key: 'db_reload',
-          label: i18n.t('reload'),
-          icon: renderIcon(Refresh),
-        },
-        {
-          key: 'db_newkey',
-          label: i18n.t('new_key'),
-          icon: renderIcon(Add),
-        },
-        {
-          key: 'db_filter',
-          label: i18n.t('filter_key'),
-          icon: renderIcon(Filter),
-        },
-        {
-          type: 'divider',
-          key: 'd1',
-        },
-        {
-          key: 'db_close',
-          label: i18n.t('close_db'),
-          icon: renderIcon(Close),
-        },
-      ]
+const buildChildren = (prefix: string, keys: string[]): EtcdTreeNode[] => {
+  const layerNames = new Set<string>()
+  const keyNames: { keyPath: string; label: string }[] = []
+
+  for (const fullKey of keys) {
+    const rest = fullKey.startsWith(prefix) ? fullKey.slice(prefix.length) : fullKey
+    const trimmed = rest.startsWith('/') ? rest.slice(1) : rest
+    if (!trimmed) continue
+    const parts = trimmed.split('/')
+    if (parts.length === 1) {
+      keyNames.push({ keyPath: fullKey, label: parts[0] })
     } else {
-      return [
-        {
-          key: 'db_open',
-          label: i18n.t('open_db'),
-          icon: renderIcon(Connect),
-        },
-      ]
+      layerNames.add(parts[0])
     }
-  },
-  [ConnectionType.RedisKey]: () => [
-    {
-      key: 'key_reload',
-      label: i18n.t('reload'),
-      icon: renderIcon(Refresh),
-    },
-    {
-      key: 'key_newkey',
-      label: i18n.t('new_key'),
-      icon: renderIcon(Add),
-    },
-    {
-      key: 'key_copy',
-      label: i18n.t('copy_path'),
-      icon: renderIcon(CopyLink),
-    },
-    {
-      type: 'divider',
-      key: 'd1',
-    },
-    {
-      key: 'key_remove',
-      label: i18n.t('remove_path'),
-      icon: renderIcon(Delete),
-    },
-  ],
-  [ConnectionType.RedisValue]: () => [
-    {
-      key: 'value_reload',
-      label: i18n.t('reload'),
-      icon: renderIcon(Refresh),
-    },
-    {
-      key: 'value_copy',
-      label: i18n.t('copy_key'),
-      icon: renderIcon(CopyLink),
-    },
-    {
-      type: 'divider',
-      key: 'd1',
-    },
-    {
-      key: 'value_remove',
-      label: i18n.t('remove_key'),
-      icon: renderIcon(Delete),
-    },
-  ],
-}
-
-const renderContextLabel = (option: TreeOption) => {
-  return h('div', { class: 'context-menu-item' }, option.label)
-}
-
-onMounted(async () => {
-  try {
-    // TODO: Show loading list status
-    loadingConnections.value = true
-    // nextTick(connectionStore.initConnection)
-  } finally {
-    loadingConnections.value = false
   }
-})
 
-const expandKey = (key: string) => {
-  const idx = indexOf(expandedKeys.value, key)
-  if (idx === -1) {
-    expandedKeys.value.push(key)
-  } else {
-    expandedKeys.value.splice(idx, 1)
-  }
-}
-
-const message = useMessage()
-const dialog = useDialog()
-
-interface Meta {
-  node?: TreeOption
-  action: 'expand' | 'collapse'
-}
-const onUpdateExpanded = (value: string[], option: TreeOption, meta: Meta) => {
-  expandedKeys.value = value
-  if (!meta.node) {
-    return
-  }
-  // console.log(JSON.stringify(meta))
-  switch (meta.action) {
-    case 'expand':
-      meta.node.expanded = true
-      break
-    case 'collapse':
-      meta.node.expanded = false
-      break
-  }
-}
-
-
-const onUpdateSelectedKeys = (keys: string[], options: TreeOption[]) => {
-  try {
-    if (!isEmpty(options)) {
-      // prevent load duplicate key
-      for (const node of options) {
-        if (node.type === ConnectionType.RedisValue) {
-          const { key, db, redisKey } = node
-          if (indexOf(selectedKeys.value, key) === -1) {
-            connectionStore.loadKeyValue(props.server, db as number, redisKey as string)
-          }
-          return
-        }
+  const layers = Array.from(layerNames)
+    .sort((a, b) => a.localeCompare(b))
+    .map((layer) => {
+      const p = prefix === '' ? `${layer}/` : `${prefix}${layer}/`
+      return {
+        key: `${props.server}#${p}`,
+        label: layer,
+        type: 'prefix' as const,
+        server: props.server,
+        pathPrefix: p,
+        isLeaf: false,
+        children: [],
       }
-      // default is load blank key to display server status
-      connectionStore.loadKeyValue(props.server, 0, '')
+    })
+
+  const keysNodes = keyNames
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((k) => ({
+      key: k.keyPath,
+      label: k.label,
+      type: 'key' as const,
+      server: props.server,
+      keyPath: k.keyPath,
+      isLeaf: true,
+    }))
+
+  return [...layers, ...keysNodes]
+}
+
+const renderPrefix = ({ option }: { option: TreeOption }) => {
+  const node = option as EtcdTreeNode
+  switch (node.type) {
+    case 'server':
+      return h(NIcon, { size: 20 }, { default: () => h(ToggleServer, { modelValue: true }) })
+    case 'prefix':
+      return h(NIcon, { size: 20 }, { default: () => h(LayerIcon) })
+    case 'key':
+    default:
+      return h(NIcon, { size: 20 }, { default: () => h(KeyIcon) })
+  }
+}
+
+const renderLabel = ({ option }: { option: TreeOption }) => option.label as string
+
+const renderSuffix = ({ option }: { option: TreeOption }) => {
+  const node = option as EtcdTreeNode
+  if (node.type === 'prefix' && node.pathPrefix) {
+    return h(NSpace, { align: 'center', inline: true, size: 2 }, () => [
+      h('span', { style: { opacity: 0.55, fontSize: '12px' } }, node.pathPrefix),
+    ])
+  }
+  return null
+}
+
+const nodeProps = ({ option }: { option: TreeOption }) => {
+  const node: any = option
+  return {
+    onDblclick: () => {
+      if (loading.value) return
+      nextTick()
+    },
+    onContextmenu: (e: MouseEvent) => {
+      e.preventDefault()
+      contextMenuParam.show = false
+      nextTick().then(() => {
+        contextMenuParam.options = menuOptions(node)
+        contextMenuParam.currentNode = node
+        contextMenuParam.x = e.clientX
+        contextMenuParam.y = e.clientY
+        contextMenuParam.show = true
+        selectedKeys.value = [node.key as string]
+      })
+    },
+  }
+}
+
+const onLoadTree = async (node: EtcdTreeNode) => {
+  loading.value = true
+  try {
+    if (!connectionStore.isConnected(props.server)) {
+      await connectionStore.openConnection(props.server, false)
+    }
+    const prefix = node.type === 'prefix' ? node.pathPrefix || '' : ''
+    await connectionStore.ensureWatch(props.server, prefix)
+    const res = await connectionStore.listKeys(props.server, prefix, node.type === 'server' ? 1000 : 2000, '', true)
+    const keys = (res.kvs || []).map((k) => k.key)
+    node.children = buildChildren(prefix, keys)
+  } catch (e: any) {
+    message.error(e.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+const onUpdateSelectedKeys = async (keys: string[], options: TreeOption[]) => {
+  try {
+    if (!options || options.length === 0) return
+    const node = options[0] as EtcdTreeNode
+    if (node.type === 'key' && node.keyPath) {
+      const kv = await connectionStore.getKV(props.server, node.keyPath)
+      tabStore.upsertTab({
+        blank: false,
+        name: props.server,
+        server: props.server,
+        db: 0,
+        type: 'kv',
+        ttl: -1,
+        key: node.keyPath,
+        value: kv,
+      })
+    } else {
+      tabStore.upsertTab({
+        blank: false,
+        name: props.server,
+        server: props.server,
+        db: 0,
+        type: 'kv',
+        ttl: -1,
+        key: '',
+        value: null,
+      })
     }
   } finally {
     selectedKeys.value = keys
   }
 }
 
-
-const renderPrefix = ({ option }: { option: TreeOption }) => {
-  switch (option.type) {
-    case ConnectionType.Server:
-      return h(
-          NIcon,
-          { size: 20 },
-          {
-            default: () => h(ToggleServer, { modelValue: false }),
-          }
-      )
-    case ConnectionType.RedisDB:
-      return h(
-          NIcon,
-          { size: 20 },
-          {
-            default: () => h(ToggleDb, { modelValue: option.opened === true }),
-          }
-      )
-    case ConnectionType.RedisKey:
-      return h(
-          NIcon,
-          { size: 20 },
-          {
-            default: () => h(Layer),
-          }
-      )
-    case ConnectionType.RedisValue:
-      return h(
-          NIcon,
-          { size: 20 },
-          {
-            default: () => h(Key),
-          }
-      )
-  }
-}
-const renderLabel = ({ option }: { option: TreeOption }) => {
-  switch (option.type) {
-    case ConnectionType.RedisDB:
-    case ConnectionType.RedisKey:
-      return `${option.label} (${option.keys || 0})`
-      // case ConnectionType.RedisValue:
-      //   return `[${option.keyType}]${option.label}`
-  }
-  return option.label as string
-}
-
-const renderSuffix = ({ option }: { option: TreeOption }) => {
-  if (option.type === ConnectionType.RedisDB) {
-    const { name: server, db } = option
-    let { match: matchPattern, type: typeFilter } = connectionStore.getKeyFilter(server as string, db as number)
-    const filterNodes: VNode[]  = []
-    if (!isEmpty(typeFilter)) {
-      filterNodes.push(
-          h(
-              NTag,
-              {
-                size: 'small',
-                closable: true,
-                bordered: false,
-                color: {
-                  color: typesBgColor[typeFilter],
-                  textColor: typesColor[typeFilter],
-                },
-                onClose: () => {
-                  // remove type filter
-                  connectionStore.setKeyFilter(server as string, db as number, matchPattern, '')
-                  connectionStore.reopenDatabase(server as string, db as number)
-                },
-              },
-              { default: () => typeFilter }
-          )
-      )
-    }
-    // match pattern tag
-    if (!isEmpty(matchPattern) && matchPattern !== '*') {
-      filterNodes.push(
-          h(
-              NTag,
-              {
-                bordered: false,
-                closable: true,
-                size: 'small',
-                onClose: () => {
-                  // remove key match pattern
-                  connectionStore.setKeyFilter(server as string, db as number, '*', typeFilter)
-                  connectionStore.reopenDatabase(server as string, db as number)
-                },
-              },
-              { default: () => matchPattern }
-          )
-      )
-    }
-    if (filterNodes.length > 0) {
-      return h(NSpace, { align: 'center', inline: true, size: 2 }, () => filterNodes)
-    }
-  }
-  return null
-}
-
-
-
-const nodeProps = ({ option }: { option: TreeOption }) => {
-  return {
-    onDblclick: async () => {
-      if (loading.value) {
-        console.warn('TODO: alert to ignore double click when loading')
-        return
-      }
-      // default handle is expand current node
-      nextTick().then(() => expandKey(option.key as string))
-    },
-    // 右键单击
-    onContextmenu: (e: MouseEvent) => {
-      e.preventDefault()
-      const mop = menuOptions[option.type as number]
-      if (mop == null) {
-        return
-      }
-      contextMenuParam.show = false
-      nextTick().then(() => {
-        contextMenuParam.options = mop(option)
-        contextMenuParam.currentNode = option
-        contextMenuParam.x = e.clientX
-        contextMenuParam.y = e.clientY
-        contextMenuParam.show = true
-        selectedKeys.value = [option.key as string]
-      })
-    },
-    // onMouseover() {
-    //   console.log('mouse over')
-    // }
-  }
-}
-
-// 这里是展开树节点
-const onLoadTree = async (node: TreeNode) => {
-  switch (node.type) {
-    case ConnectionType.RedisDB:
-      loading.value = true
-      try {
-        if (typeof node.db === 'number') {
-          await connectionStore.openDatabase(props.server, node.db)
-        }
-      } catch (e: any) {
-        message.error(e.message)
-        node.isLeaf = undefined
-      } finally {
-        loading.value = false
-      }
-      break
-      // case ConnectionType.RedisKey:
-      //     console.warn('load redis key', node.redisKey)
-      //     node.keys = sumBy(node.children, 'keys')
-      //     break
-      // case ConnectionType.RedisValue:
-      //     node.keys = 1
-      //     break
-  }
-}
-
-const confirmDialog = useConfirmDialog()
-const handleSelectContextMenu = (key: string) => {
+const handleOutsideContextMenu = () => {
   contextMenuParam.show = false
+}
 
-  //  在选择的时候会更新 currentNode
-  if (!contextMenuParam.currentNode) return
+const onUpdateExpandedKeys = (v: string[]) => {
+  expandedKeys.value = v
+}
 
-  const { db, key: nodeKey, redisKey } = contextMenuParam.currentNode
-  switch (key) {
+const handleSelectContextMenu = (actionKey: string) => {
+  contextMenuParam.show = false
+  const node = contextMenuParam.currentNode
+  if (!node) return
+
+  switch (actionKey) {
     case 'server_reload':
-      connectionStore.openConnection(props.server, true).then(() => {
-        message.success(i18n.t('reload_succ'))
-      })
+      connectionStore.openConnection(props.server, true).then(() => message.success(i18n.t('reload_succ')))
       break
     case 'server_close':
       connectionStore.closeConnection(props.server)
       break
-    case 'db_open':
-      nextTick().then(() => expandKey(nodeKey as string))
+    case 'prefix_newkey':
+      dialogStore.openNewKeyDialog(node.pathPrefix || '', props.server, 0)
       break
-    case 'db_reload':
-      connectionStore.reopenDatabase(props.server, db as number)
+    case 'prefix_copy':
+      ClipboardSetText(node.pathPrefix || '')
+        .then((succ) => succ && message.success(i18n.t('copy_succ')))
+        .catch((e: any) => message.error(e.message))
       break
-    case 'db_close':
-      remove(expandedKeys.value, (k) => k === `${props.server}/db${db}`)
-      connectionStore.closeDatabase(props.server, db as number)
-      break
-    case 'db_newkey':
-    case 'key_newkey':
-      dialogStore.openNewKeyDialog(redisKey as string, props.server, db as number)
-      break
-    case 'db_filter':
-      const { match: pattern, type } = connectionStore.getKeyFilter(props.server, db as number)
-      dialogStore.openKeyFilterDialog(props.server, db as number, pattern, type)
-      break
-    case 'key_reload':
-      connectionStore.loadKeys(props.server, db as  number,   redisKey as string)
-      break
-    case 'value_reload':
-      connectionStore.loadKeyValue(props.server, db as number, redisKey as string)
-      break
-    case 'key_remove':
-      dialogStore.openDeleteKeyDialog(props.server, db as number, redisKey + ':*')
-      break
-    case 'value_remove':
-      confirmDialog.warning(i18n.t('remove_tip', { name: redisKey }), () => {
-        connectionStore.deleteKey(props.server, db as number, redisKey as string).then((success) => {
-          if (success) {
-            message.success(i18n.t('delete_key_succ', { key: redisKey }))
-          }
-        })
+    case 'prefix_remove':
+      confirmDialog.warning(i18n.t('remove_tip', { name: node.pathPrefix }), () => {
+        connectionStore
+          .deleteKey(props.server, node.pathPrefix || '', true)
+          .then(() => message.success(i18n.t('delete_key_succ', { key: node.pathPrefix })))
       })
       break
     case 'key_copy':
-    case 'value_copy':
-      ClipboardSetText(redisKey as string)
-          .then((succ) => {
-            if (succ) {
-              message.success(i18n.t('copy_succ'))
-            }
-          })
-          .catch((e: any) => {
-            message.error(e.message)
-          })
+      ClipboardSetText(node.keyPath || '')
+        .then((succ) => succ && message.success(i18n.t('copy_succ')))
+        .catch((e: any) => message.error(e.message))
       break
-    default:
-      console.warn('TODO: handle context menu:' + key)
+    case 'key_remove':
+      confirmDialog.warning(i18n.t('remove_tip', { name: node.keyPath }), () => {
+        connectionStore
+          .deleteKey(props.server, node.keyPath || '', false)
+          .then(() => message.success(i18n.t('delete_key_succ', { key: node.keyPath })))
+      })
+      break
   }
-}
-
-const handleOutsideContextMenu = () => {
-  contextMenuParam.show = false
 }
 </script>
 
-<!-- 在任何指标下进行 dropdown 点击会出现下来框-->
 <template>
   <div class="browser-tree-wrapper" :style="{ backgroundColor }">
     <n-tree
-        :block-line="true"
-        :block-node="true"
-        :animated="false"
-        :cancelable="false"
-        :data="data"
-        :expand-on-click="false"
-        :expanded-keys="expandedKeys"
-        :selected-keys="selectedKeys"
-        @update:selected-keys="onUpdateSelectedKeys"
-        :node-props="nodeProps"
-        @load="onLoadTree"
-        @update:expanded-keys="onUpdateExpanded"
-        :render-label="renderLabel"
-        :render-prefix="renderPrefix"
-        :render-suffix="renderSuffix"
-        class="fill-height"
-        virtual-scroll
+      :block-line="true"
+      :block-node="true"
+      :animated="false"
+      :cancelable="false"
+      :data="data"
+      :expand-on-click="false"
+      :expanded-keys="expandedKeys"
+      :selected-keys="selectedKeys"
+      :node-props="nodeProps"
+      :render-label="renderLabel"
+      :render-prefix="renderPrefix"
+      :render-suffix="renderSuffix"
+      class="fill-height"
+      virtual-scroll
+      @load="onLoadTree"
+      @update:selected-keys="onUpdateSelectedKeys"
+      @update:expanded-keys="onUpdateExpandedKeys"
     />
     <n-dropdown
-        :animated="false"
-        :options="contextMenuParam.options"
-        :render-label="renderContextLabel"
-        :show="contextMenuParam.show"
-        :x="contextMenuParam.x"
-        :y="contextMenuParam.y"
-        placement="bottom-start"
-        trigger="manual"
-        @clickoutside="handleOutsideContextMenu"
-        @select="handleSelectContextMenu"
+      :animated="false"
+      :options="contextMenuParam.options"
+      :show="contextMenuParam.show"
+      :x="contextMenuParam.x"
+      :y="contextMenuParam.y"
+      placement="bottom-start"
+      trigger="manual"
+      @clickoutside="handleOutsideContextMenu"
+      @select="handleSelectContextMenu"
     />
   </div>
 </template>
@@ -563,3 +337,4 @@ const handleOutsideContextMenu = () => {
   overflow: hidden;
 }
 </style>
+

@@ -14,6 +14,14 @@ type ConnectionConfig struct {
 	ConnTimeout   int    `json:"connTimeout,omitempty" yaml:"conn_timeout,omitempty"`
 	ExecTimeout   int    `json:"execTimeout,omitempty" yaml:"exec_timeout,omitempty"`
 	MarkColor     string `json:"markColor,omitempty" yaml:"mark_color,omitempty"`
+
+	// TLS options for etcd (optional)
+	TLSEnabled            bool   `json:"tlsEnabled,omitempty" yaml:"tls_enabled,omitempty"`
+	CACertPath            string `json:"caCertPath,omitempty" yaml:"ca_cert_path,omitempty"`
+	ClientCertPath        string `json:"clientCertPath,omitempty" yaml:"client_cert_path,omitempty"`
+	ClientKeyPath         string `json:"clientKeyPath,omitempty" yaml:"client_key_path,omitempty"`
+	TLSServerName         string `json:"tlsServerName,omitempty" yaml:"tls_server_name,omitempty"`
+	TLSInsecureSkipVerify bool   `json:"tlsInsecureSkipVerify,omitempty" yaml:"tls_insecure_skip_verify,omitempty"`
 }
 
 type Connection struct {

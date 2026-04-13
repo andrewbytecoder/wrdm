@@ -7,14 +7,12 @@ import { useI18n } from 'vue-i18n'
 
 interface RenameForm {
   server: string
-  db: number
   key: string
   newKey: string
 }
 
 const renameForm = reactive<RenameForm>({
   server: '',
-  db: 0,
   key: '',
   newKey: '',
 })
@@ -28,7 +26,6 @@ watch(
       if (visible) {
         const { server, db, key } = dialogStore.renameKeyParam
         renameForm.server = server
-        renameForm.db = db
         renameForm.key = key
         renameForm.newKey = key
       }
@@ -40,14 +37,9 @@ const message = useMessage()
 
 const onRename = async () => {
   try {
-    const { server, db, key, newKey } = renameForm
-    const { success, msg } = await connectionStore.renameKey(server, db, key, newKey)
-    if (success) {
-      await connectionStore.loadKeyValue(server, db, newKey)
-      message.success(i18n.t('handle_succ'))
-    } else {
-      message.error(msg || i18n.t('handle_fail'))
-    }
+    const { server, key, newKey } = renameForm
+    await connectionStore.renameKey(server, key, newKey, true)
+    message.success(i18n.t('handle_succ'))
   } catch (e: any) {
     message.error(e.message)
   }

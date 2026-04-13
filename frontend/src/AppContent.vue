@@ -10,7 +10,6 @@ import ContentServerPane from '@/components/content/ContentServerPane.vue'
 import useTabStore from '@/stores/tab'
 import usePreferencesStore from '@/stores/preferences'
 import useConnectionStore from '@/stores/connections'
-import ContentLogPane from '@/components/content/ContentLogPane.vue'
 
 
 // 定义响应式数据类型
@@ -126,12 +125,6 @@ onBeforeUnmount(() => {
       <content-server-pane class="flex-item-expand" />
     </div>
 
-    <!-- log page -->
-    <div v-if="tabStore.nav === 'log'" class="flex-box-h flex-item-expand">
-      <keep-alive>
-        <content-log-pane class="flex-item-expand" />
-      </keep-alive>
-    </div>
   </div>
 </template>
 

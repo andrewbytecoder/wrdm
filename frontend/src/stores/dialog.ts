@@ -34,7 +34,27 @@ interface KeyFilterParam {
     pattern: string
 }
 
+interface LeaseParam {
+    server: string
+    key: string
+    leaseId: number
+}
 
+interface ExportParam {
+    server: string
+    prefix: string
+}
+
+interface ImportParam {
+    server: string
+    json: string
+    mode: 'overwrite' | 'skip' | 'onlyNew'
+}
+
+interface TxnParam {
+    server: string
+    json: string
+}
 const useDialogStore = defineStore('dialog', {
     state: () => ({
         connDialogVisible: false,
@@ -87,14 +107,40 @@ const useDialogStore = defineStore('dialog', {
         selectTTL: -1,
         ttlDialogVisible: false,
 
+        leaseParam: {
+            server: '',
+            key: '',
+            leaseId: 0,
+        } as LeaseParam,
+        leaseDialogVisible: false,
+
+        exportParam: {
+            server: '',
+            prefix: '',
+        } as ExportParam,
+        exportDialogVisible: false,
+
+        importParam: {
+            server: '',
+            json: '[]',
+            mode: 'onlyNew',
+        } as ImportParam,
+        importDialogVisible: false,
+
+        txnParam: {
+            server: '',
+            json: JSON.stringify({ compares: [], successOps: [], failOps: [] }, null, 2),
+        } as TxnParam,
+        txnDialogVisible: false,
+
         preferencesDialogVisible: false,
     }),
 
     actions: {
         openNewDialog() {
             this.connDialogVisible = true
-            this.connParam = new ConnParam('', '', '', '', '127.0.0.1', 6379,
-                '', '', '*', ':', 60, 60, '', 0)
+            this.connParam = new ConnParam('', '', '', '', '127.0.0.1', 2379,
+                '', '', '', '/', 60, 60, '', 0)
         },
         closeNewDialog() {
             this.connDialogVisible = false
@@ -103,10 +149,7 @@ const useDialogStore = defineStore('dialog', {
         async openEditDialog(name: string) {
             const connStore = useConnectionStore()
             let profile = await connStore.getConnectionProfile(name)
-            if (!profile) {
-                profile = connStore.newDefaultConnection(name)
-                return
-            }
+            if (!profile) return
             this.connParam = new ConnParam(profile.name, profile.group, "", "",profile.addr,
                 profile.port, profile.username, profile.password, profile.defaultFilter, profile.keySeparator,
                 profile.connTimeout, profile.execTimeout, profile.markColor, profile.type)
@@ -169,6 +212,42 @@ const useDialogStore = defineStore('dialog', {
         },
         closeDeleteKeyDialog() {
             this.deleteKeyDialogVisible = false
+        },
+
+        openLeaseDialog(server: string, key: string, leaseId: number) {
+            this.leaseParam = { server, key, leaseId }
+            this.leaseDialogVisible = true
+        },
+
+        closeLeaseDialog() {
+            this.leaseDialogVisible = false
+        },
+
+        openExportDialog(server: string, prefix: string) {
+            this.exportParam = { server, prefix }
+            this.exportDialogVisible = true
+        },
+
+        closeExportDialog() {
+            this.exportDialogVisible = false
+        },
+
+        openImportDialog(server: string, json: string, mode: 'overwrite' | 'skip' | 'onlyNew') {
+            this.importParam = { server, json, mode }
+            this.importDialogVisible = true
+        },
+
+        closeImportDialog() {
+            this.importDialogVisible = false
+        },
+
+        openTxnDialog(server: string) {
+            this.txnParam = { server, json: JSON.stringify({ compares: [], successOps: [], failOps: [] }, null, 2) }
+            this.txnDialogVisible = true
+        },
+
+        closeTxnDialog() {
+            this.txnDialogVisible = false
         },
 
         /**

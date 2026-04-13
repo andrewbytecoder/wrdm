@@ -1,30 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { types } from '@/consts/support_redis_type'
-import ContentValueHash from '@/components/content_value/ContentValueHash.vue'
-import ContentValueList from '@/components/content_value/ContentValueList.vue'
-import ContentValueString from '@/components/content_value/ContentValueString.vue'
-import ContentValueSet from '@/components/content_value/ContentValueSet.vue'
-import ContentValueZset from '@/components/content_value/ContentValueZSet.vue'
 import { get, isEmpty, map, toUpper } from 'lodash'
 import useTabStore, {TabItem} from '@/stores/tab'
-import type { Component } from 'vue'
-import { useDialog } from 'naive-ui'
 import useConnectionStore from '@/stores/connections'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '@/utils/confirm_dialog'
 import ContentServerStatus from '@/components/content_value/ContentServerStatus.vue'
+import EtcdKVView from '@/components/content_value/EtcdKVView.vue'
 
 //  主内容界面
 
+interface TabInfo {
+  key: string
+  label: string
+}
+
 const serverInfo = ref({})
 const autoRefresh = ref(false)
-const serverName = computed(():string => {
-  if (tabContent.value != null) {
-    return tabContent.value.name
-  }
-  return ''
-})
+const serverName = computed(():string => tabStore.currentTab?.server || tabStore.currentTab?.name || '')
 
 const loadingServerInfo = ref<boolean>(false)
 let refreshingServerInfo = false
@@ -40,7 +33,7 @@ const refreshInfo = async (force: boolean): Promise<void> => {
   if (force) loadingServerInfo.value = true
   try {
     if (!isEmpty(serverName.value) && connectionStore.isConnected(serverName.value)) {
-      serverInfo.value = await connectionStore.getServerInfo(serverName.value)
+      serverInfo.value = connectionStore.status?.[serverName.value]?.status || {}
     }
   } catch (e: any) {
     console.warn('refresh server info failed', e)
@@ -67,20 +60,6 @@ onUnmounted(() => {
   }
 })
 
-interface TabInfo {
-  key: string
-  label: string
-}
-
-const valueComponents: Record<string, Component> = {
-  [types.STRING]: ContentValueString,
-  [types.HASH]: ContentValueHash,
-  [types.LIST]: ContentValueList,
-  [types.SET]: ContentValueSet,
-  [types.ZSET]: ContentValueZset,
-}
-
-const dialog = useDialog()
 const connectionStore = useConnectionStore()
 const tabStore = useTabStore()
 
@@ -101,22 +80,7 @@ watch(
     }
 )
 
-const tabContent = computed((): TabItem | null => {
-  const tab = tabStore.currentTab
-  if (tab == null) {
-    return null
-  }
-  return {
-    blank: false,
-    server: "",
-    name: tab.name,
-    type: toUpper(tab.type || ''),
-    db: tab.db,
-    key: tab.key,
-    ttl: tab.ttl,
-    value: tab.value
-  }
-})
+const tabContent = computed((): TabItem | null => tabStore.currentTab ?? null)
 
 const showServerStatus = computed(() => {
   return tabContent.value == null || isEmpty(tabContent.value.key)
@@ -142,7 +106,17 @@ const onReloadKey = async () => {
   if (tab == null || isEmpty(tab.key)) {
     return null
   }
-  await connectionStore.loadKeyValue(tab.name, tab.db as number, tab.key)
+  const kv = await connectionStore.getKV(tab.server || tab.name, tab.key)
+  tabStore.upsertTab({
+    blank: false,
+    name: tab.server || tab.name,
+    server: tab.server || tab.name,
+    db: 0,
+    type: 'kv',
+    ttl: -1,
+    key: tab.key,
+    value: kv,
+  })
 }
 const i18n = useI18n()
 const confirmDialog = useConfirmDialog()
@@ -198,13 +172,10 @@ const onCloseTab = (tabIndex: number) => {
     </div>
     <component
         v-else
-        :is="valueComponents[tabContent?.type as string]"
-        :db="tabContent?.db"
-        :key-path="tabContent?.key"
-        :key-type="tabContent?.type"
-        :name="tabContent?.name"
-        :ttl="tabContent?.ttl"
-        :value="tabContent?.value"
+        :is="EtcdKVView"
+        :server="tabContent?.server || tabContent?.name || ''"
+        :key-path="tabContent?.key || ''"
+        :kv="tabContent?.value"
     />
   </div>
 </template>

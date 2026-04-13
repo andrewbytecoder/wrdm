@@ -8,13 +8,12 @@ import { computed, reactive } from 'vue'
 import { get } from 'lodash'
 import Delete from '@/components/icons/Delete.vue'
 import Refresh from '@/components/icons/Refresh.vue'
+import Save from '@/components/icons/Save.vue'
+import Copy from '@/components/icons/Copy.vue'
+import Edit from '@/components/icons/Edit.vue'
 import useDialogStore from '@/stores/dialog'
-import { useConfirmDialog } from '@/utils/confirm_dialog'
 import { useI18n } from 'vue-i18n'
 import useConnectionStore from '@/stores/connections'
-import Filter from '@/components/icons/Filter.vue'
-import { types } from '@/consts/support_redis_type'
-import Search from '@/components/icons/Search.vue'
 
 
 
@@ -39,17 +38,11 @@ const onNewKey = () => {
 
 const i18n = useI18n()
 const connectionStore = useConnectionStore()
-const confirmDialog = useConfirmDialog()
 const message = useMessage()
 const onDeleteKey = () => {
-  const { server, db, key } = currentSelect.value
-  confirmDialog.warning(i18n.t('remove_tip', { name: key }), () => {
-    connectionStore.deleteKey(server ?? '', db ?? 0, key ?? '').then((success) => {
-      if (success) {
-        message.success(i18n.t('delete_key_succ', { key }))
-      }
-    })
-  })
+  const { server, key } = currentSelect.value
+  if (!server || !key) return
+  dialogStore.openDeleteKeyDialog(server, 0, key)
 }
 
 const onRefresh = () => {
@@ -58,57 +51,37 @@ const onRefresh = () => {
   })
 }
 
-const filterForm = reactive({
-  showFilter: false,
-  type: '',
-  pattern: '',
-})
+const onExport = () => {
+  const { server, key } = currentSelect.value
+  if (!server) return
+  // export current key as prefix if it ends with '/'
+  dialogStore.openExportDialog(server, key || '')
+}
 
-const filterTypeOptions = computed(() => {
-  const options = Object.keys(types).map((t: string) => ({
-    value: t,
-    label: t,
-  }))
-  options.splice(0, 0, {
-    value: '',
-    label: i18n.t('all'),
-  })
-  return options
-})
+const onImport = () => {
+  const { server } = currentSelect.value
+  if (!server) return
+  dialogStore.openImportDialog(server, '[]', 'onlyNew')
+}
+
+const onTxn = () => {
+  const { server } = currentSelect.value
+  if (!server) return
+  dialogStore.openTxnDialog(server)
+}
 
 </script>
 
 <template>
     <div class="nav-pane-container flex-box-v">
         <BrowserTree :server="currentName" />
-<!--       通过点击图标，来控制是否显示过滤器-->
-        <div class="nav-pane-bottom flex-box-h" v-if="filterForm.showFilter">
-            <n-input-group>
-                <n-select
-                    v-model:value="filterForm.type"
-                    :options="filterTypeOptions"
-                    style="width: 120px"
-                    :consistent-menu-width="false"
-                />
-                <n-input placeholder="" clearable />
-                <n-button ghost>
-                    <template #icon>
-                        <n-icon :component="Search" />
-                    </template>
-                </n-button>
-            </n-input-group>
-        </div>
         <!-- bottom function bar -->
         <div class="nav-pane-bottom flex-box-h">
             <icon-button :icon="AddLink" size="20" stroke-width="4" t-tooltip="new_key" @click="onNewKey" />
             <icon-button :icon="Refresh" size="20" stroke-width="4" t-tooltip="reload" @click="onRefresh" />
-            <icon-button
-                :icon="Filter"
-                size="20"
-                stroke-width="4"
-                t-tooltip="filter_key"
-                @click="filterForm.showFilter = !filterForm.showFilter"
-            />
+            <icon-button :icon="Save" size="20" stroke-width="4" t-tooltip="export" @click="onExport" />
+            <icon-button :icon="Copy" size="20" stroke-width="4" t-tooltip="import" @click="onImport" />
+            <icon-button :icon="Edit" size="20" stroke-width="4" t-tooltip="txn" @click="onTxn" />
             <div class="flex-item-expand"></div>
             <icon-button
                 :disabled="currentSelect.key == null"

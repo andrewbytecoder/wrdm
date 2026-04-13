@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import useDialogStore from '@/stores/dialog'
 import { h, nextTick, reactive, ref } from 'vue'
-import useConnectionStore,  { DatabaseItem } from '@/stores/connections'
+import useConnectionStore from '@/stores/connections'
 import { NIcon, useDialog, useMessage, useThemeVars, TreeSelectOption, TreeOption, TreeDropInfo  } from 'naive-ui'
 import { ConnectionType } from '@/consts/connection_type'
 import ToggleFolder from '@/components/icons/ToggleFolder.vue'
