@@ -7,6 +7,8 @@ import {
     AddStreamValue,
     AddZSetValue,
     BatchSetTTL,
+    BrowseRemoveKeys,
+    BrowseSetKeyFilter,
     CleanCmdHistory,
     CloseConnection,
     ConvertValue,
@@ -15,6 +17,7 @@ import {
     DeleteKeysByPattern,
     ExportKey,
     FlushDB,
+    GetBrowserSnapshot,
     GetClientList,
     GetCmdHistory,
     GetHashValue,
@@ -28,6 +31,7 @@ import {
     LoadNextKeys,
     OpenConnection,
     OpenDatabase,
+    ReloadKeyLayer,
     RemoveStreamValues,
     RenameKey,
     ServerInfo,
@@ -94,6 +98,23 @@ const useBrowserStore = defineStore('browser', {
          */
         isConnected(name) {
             return this.servers.hasOwnProperty(name)
+        },
+
+        /**
+         * Pull key tree / browse metadata from Go browse session into Pinia (single source on backend).
+         * @param {string} server
+         * @param {number} db
+         */
+        async applyBrowserSnapshot(server, db) {
+            /** @type {RedisServerState | undefined} */
+            const serverInst = this.servers[server]
+            if (serverInst == null) {
+                return
+            }
+            const { success, data } = await GetBrowserSnapshot(server, db)
+            if (success && data != null) {
+                serverInst.hydrateFromBrowseSnapshot(data)
+            }
         },
 
         /**
@@ -282,6 +303,7 @@ const useBrowserStore = defineStore('browser', {
             }
             serverInst.databases = databases
             this.servers[name] = serverInst
+            await this.applyBrowserSnapshot(name, serverInst.db)
         },
 
         /**
@@ -313,24 +335,13 @@ const useBrowserStore = defineStore('browser', {
             if (!success) {
                 throw new Error(msg)
             }
-            const { keys = [], end = false, maxKeys = 0 } = data
-
             /** @type {RedisServerState} **/
             const serverInst = this.servers[server]
             if (serverInst == null) {
                 return
             }
             serverInst.db = db
-            serverInst.setDatabaseKeyCount(db, maxKeys)
-            serverInst.loadingState.fullLoaded = end
-
-            if (isEmpty(keys)) {
-                serverInst.nodeMap.clear()
-            } else {
-                // append db node to current connection's children
-                serverInst.addKeyNodes(keys)
-            }
-            serverInst.tidyNode('', false)
+            await this.applyBrowserSnapshot(server, db)
         },
 
         /**
@@ -663,7 +674,7 @@ const useBrowserStore = defineStore('browser', {
          */
         async loadMoreKeys(server, db) {
             const { match, type: keyType, exact } = this.getKeyFilter(server)
-            const { keys, maxKeys, end } = await this._loadKeys({
+            const { end } = await this._loadKeys({
                 server,
                 db,
                 match,
@@ -671,14 +682,7 @@ const useBrowserStore = defineStore('browser', {
                 matchType: keyType,
                 all: false,
             })
-            /** @type RedisServerState **/
-            const serverInst = this.servers[server]
-            if (serverInst != null) {
-                serverInst.setDBKeyCount(db, maxKeys)
-                // remove current keys below prefix
-                serverInst.addKeyNodes(keys)
-                serverInst.tidyNode('')
-            }
+            await this.applyBrowserSnapshot(server, db)
             return end
         },
 
@@ -690,14 +694,8 @@ const useBrowserStore = defineStore('browser', {
          */
         async loadAllKeys(server, db) {
             const { match, type: keyType, exact } = this.getKeyFilter(server)
-            const { keys, maxKeys } = await this._loadKeys({ server, db, match, exact, matchType: keyType, all: true })
-            /** @type RedisServerState **/
-            const serverInst = this.servers[server]
-            if (serverInst != null) {
-                serverInst.setDBKeyCount(db, maxKeys)
-                serverInst.addKeyNodes(keys)
-                serverInst.tidyNode('')
-            }
+            await this._loadKeys({ server, db, match, exact, matchType: keyType, all: true })
+            await this.applyBrowserSnapshot(server, db)
         },
 
         /**
@@ -721,28 +719,15 @@ const useBrowserStore = defineStore('browser', {
                 }
             }
             // FIXME: ignore original match pattern due to redis not support combination matching
-            const { match: originMatch, type: keyType, exact } = this.getKeyFilter(server)
-            const { keys, maxKeys, success } = await this._loadKeys({
-                server,
-                db,
-                match: match || originMatch,
-                exact: false,
-                matchType: keyType,
-                all: true,
-            })
+            const { match: originMatch, type: keyType } = this.getKeyFilter(server)
+            const { success, msg } = await ReloadKeyLayer(server, db, prefix, match || originMatch, keyType, false)
             if (!success) {
+                if (!isEmpty(msg)) {
+                    $message.error(msg)
+                }
                 return
             }
-
-            /** @type RedisServerState **/
-            const serverInst = this.servers[server]
-            if (serverInst != null) {
-                serverInst.setDBKeyCount(db, maxKeys)
-                // remove current keys below prefix
-                serverInst.removeKeyNode(prefix, true)
-                serverInst.addKeyNodes(keys)
-                serverInst.tidyNode(prefix)
-            }
+            await this.applyBrowserSnapshot(server, db)
         },
 
         /**
@@ -852,27 +837,16 @@ const useBrowserStore = defineStore('browser', {
                     decode,
                 })
                 if (success) {
-                    /** @type RedisServerState **/
-                    const serverInst = this.servers[server]
-                    if (serverInst != null && serverInst.db === db) {
-                        // const { value } = data
-                        // update tree view data
-                        const { newKey = 0 } = serverInst.addKeyNodes([key], true)
-                        if (newKey > 0) {
-                            serverInst.tidyNode(key)
-                            serverInst.updateDBKeyCount(db, newKey)
-                        }
-
-                        const { value: updatedValue } = data
-                        if (updatedValue != null) {
-                            const tab = useTabStore()
-                            tab.updateValue({ server, db, key, value: updatedValue })
-                        }
+                    await this.applyBrowserSnapshot(server, db)
+                    const k = nativeRedisKey(key)
+                    const { value: updatedValue } = data
+                    if (updatedValue != null) {
+                        const tab = useTabStore()
+                        tab.updateValue({ server, db, key, value: updatedValue })
                     }
-                    // this.loadKeySummary({ server, db, key })
                     return {
                         success,
-                        nodeKey: `${server}/db${db}#${ConnectionType.RedisValue}/${key}`,
+                        nodeKey: `${server}/db${db}#${ConnectionType.RedisValue}/${k}`,
                         updatedValue: value,
                     }
                 } else {
@@ -1704,21 +1678,13 @@ const useBrowserStore = defineStore('browser', {
          */
         async deleteKey(server, db, key, soft) {
             try {
-                let deleteCount = 1
-                if (soft !== true) {
-                    const { data } = await DeleteKey(server, db, key)
-                    deleteCount = get(data, 'deleteCount', 0)
+                if (soft === true) {
+                    const k = nativeRedisKey(key)
+                    await BrowseRemoveKeys(server, db, [k])
+                } else {
+                    await DeleteKey(server, db, key)
                 }
-
-                const k = nativeRedisKey(key)
-                // update tree view data
-                /** @type RedisServerState **/
-                const serverInst = this.servers[server]
-                if (serverInst != null) {
-                    serverInst.removeKeyNode(k)
-                    serverInst.tidyNode(k, true)
-                    serverInst.updateDBKeyCount(db, -deleteCount)
-                }
+                await this.applyBrowserSnapshot(server, db)
 
                 // set tab content empty
                 const tab = useTabStore()
@@ -1776,22 +1742,9 @@ const useBrowserStore = defineStore('browser', {
                 // some fail
                 $message.warning(i18nGlobal.t('dialogue.delete.completed', { success: deletedCount, fail: failCount }))
             }
-            // update ui
+            // update ui from backend browse state (DeleteKeys already updated tree on server)
             timeout(100).then(async () => {
-                /** @type RedisServerState **/
-                const serverInst = this.servers[server]
-                if (serverInst != null) {
-                    let start = now()
-                    for (let i = 0; i < deleted.length; i++) {
-                        serverInst.removeKeyNode(deleted[i], false)
-                        if (now() - start > 300) {
-                            await timeout(100)
-                            start = now()
-                        }
-                    }
-                    serverInst.tidyNode('', true)
-                    serverInst.updateDBKeyCount(db, -deletedCount)
-                }
+                await this.applyBrowserSnapshot(server, db)
             })
         },
 
@@ -1836,22 +1789,9 @@ const useBrowserStore = defineStore('browser', {
                 // some fail
                 $message.warning(i18nGlobal.t('dialogue.delete.completed', { success: deletedCount, fail: failCount }))
             }
-            // update ui
+            // update ui from backend browse state
             timeout(100).then(async () => {
-                /** @type RedisServerState **/
-                const serverInst = this.servers[server]
-                if (serverInst != null) {
-                    let start = now()
-                    for (let i = 0; i < deleted.length; i++) {
-                        serverInst.removeKeyNode(deleted[i], false)
-                        if (now() - start > 300) {
-                            await timeout(100)
-                            start = now()
-                        }
-                    }
-                    serverInst.tidyNode('', true)
-                    serverInst.updateDBKeyCount(db, -deletedCount)
-                }
+                await this.applyBrowserSnapshot(server, db)
             })
         },
 
@@ -1959,7 +1899,7 @@ const useBrowserStore = defineStore('browser', {
                 // finish
                 $message.success(i18nGlobal.t('dialogue.import.import_completed', { success: imported, ignored }))
                 if (reload) {
-                    this.reloadServer(server)
+                    await this.applyBrowserSnapshot(server, db)
                 }
             }
         },
@@ -1976,12 +1916,7 @@ const useBrowserStore = defineStore('browser', {
                 const { success = false } = await FlushDB(server, db, async)
 
                 if (success === true) {
-                    /** @type RedisServerState **/
-                    const serverInst = this.servers[server]
-                    if (serverInst != null) {
-                        // update tree view data
-                        serverInst.removeKeyNode()
-                    }
+                    await this.applyBrowserSnapshot(server, db)
                     // set tab content empty
                     const tab = useTabStore()
                     tab.emptyTab(server)
@@ -2006,12 +1941,7 @@ const useBrowserStore = defineStore('browser', {
         async renameKey(server, db, key, newKey) {
             const { success = false, msg } = await RenameKey(server, db, key, newKey)
             if (success) {
-                // delete old key and add new key struct
-                /** @type RedisServerState **/
-                const serverInst = this.servers[server]
-                if (serverInst != null) {
-                    serverInst.renameKey(key, newKey)
-                }
+                await this.applyBrowserSnapshot(server, db)
                 return { success: true, nodeKey: `${server}/db${db}#${ConnectionType.RedisValue}/${newKey}` }
             } else {
                 return { success: false, msg }
@@ -2110,11 +2040,19 @@ const useBrowserStore = defineStore('browser', {
          * @param {string} [type]
          * @param {boolean} [exact]
          */
-        setKeyFilter(server, { pattern, type, exact = false }) {
+        async setKeyFilter(server, { pattern, type, exact = false }) {
             const serverInst = this.servers[server]
-            if (serverInst != null) {
-                serverInst.setFilter({ pattern, type, exact })
+            if (serverInst == null) {
+                return
             }
+            const db = this.getSelectedDB(server)
+            await BrowseSetKeyFilter(
+                server,
+                pattern == null ? '' : String(pattern),
+                type == null ? '' : String(type),
+                exact === true,
+            )
+            await this.applyBrowserSnapshot(server, db)
         },
 
         /**

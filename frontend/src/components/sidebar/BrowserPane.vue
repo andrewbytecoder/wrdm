@@ -128,7 +128,7 @@ const onReload = async () => {
         if (!types.hasOwnProperty(matchType)) {
             matchType = ''
         }
-        browserStore.setKeyFilter(props.server, {
+        await browserStore.setKeyFilter(props.server, {
             type: matchType,
             pattern: unref(filterForm.pattern),
             exact: unref(filterForm.exact) === true,
@@ -213,7 +213,7 @@ const handleSelectDB = async (db) => {
 
     try {
         loading.value = true
-        browserStore.setKeyFilter(props.server, {})
+        await browserStore.setKeyFilter(props.server, {})
         browserStore.closeDatabase(props.server, props.db)
         filterInputRef.value?.reset()
         await browserStore.openDatabase(props.server, db)
