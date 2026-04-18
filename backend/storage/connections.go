@@ -2,47 +2,55 @@ package storage
 
 import (
 	"errors"
-	"sync"
-
-	"github.com/andrewbytecoder/wrdm/backend/types"
-	sliceutil "github.com/andrewbytecoder/wrdm/backend/utils/slice"
 	"gopkg.in/yaml.v3"
+	"slices"
+	"sync"
+	"tinyrdm/backend/consts"
+	"tinyrdm/backend/types"
 )
 
 type ConnectionsStorage struct {
-	storage *LocalStorage
+	storage *localStorage
 	mutex   sync.Mutex
 }
 
 func NewConnections() *ConnectionsStorage {
 	return &ConnectionsStorage{
-		storage: NewLocalStorage("connections.yaml"),
+		storage: NewLocalStore("connections.yaml"),
 	}
 }
 
-func (c *ConnectionsStorage) defaultConnections() []types.Connection {
-	return []types.Connection{}
+func (c *ConnectionsStorage) defaultConnections() types.Connections {
+	return types.Connections{}
 }
 
 func (c *ConnectionsStorage) defaultConnectionItem() types.ConnectionConfig {
 	return types.ConnectionConfig{
-		Name:          "",
-		Addr:          "127.0.0.1",
-		Port:          6379,
-		UserName:      "",
-		Password:      "",
-		DefaultFilter: "*",
-		KeySeparator:  ":",
-		ConnTimeout:   60,
-		ExecTimeout:   60,
-		MarkColor:     "",
+		Name:            "",
+		Network:         "tcp",
+		Addr:            "127.0.0.1",
+		Port:            6379,
+		Username:        "",
+		Password:        "",
+		DefaultFilter:   "*",
+		KeySeparator:    ":",
+		ConnTimeout:     60,
+		ExecTimeout:     60,
+		DBFilterType:    "none",
+		DBFilterList:    []int{},
+		LoadSize:        consts.DEFAULT_LOAD_SIZE,
+		MarkColor:       "",
+		RefreshInterval: 5,
+		Sentinel: types.ConnectionSentinel{
+			Master: "mymaster",
+		},
 	}
 }
 
-func (c *ConnectionsStorage) getConnections() (ret []types.Connection) {
+func (c *ConnectionsStorage) getConnections() (ret types.Connections) {
 	b, err := c.storage.Load()
+	ret = c.defaultConnections()
 	if err != nil {
-		ret = c.defaultConnections()
 		return
 	}
 
@@ -62,12 +70,12 @@ func (c *ConnectionsStorage) getConnections() (ret []types.Connection) {
 }
 
 // GetConnections get all store connections from local
-func (c *ConnectionsStorage) GetConnections() []types.Connection {
+func (c *ConnectionsStorage) GetConnections() (ret types.Connections) {
 	return c.getConnections()
 }
 
 // GetConnectionsFlat get all store connections from local flat(exclude group level)
-func (c *ConnectionsStorage) GetConnectionsFlat() (ret []types.Connection) {
+func (c *ConnectionsStorage) GetConnectionsFlat() (ret types.Connections) {
 	conns := c.getConnections()
 	for _, conn := range conns {
 		if conn.Type == "group" {
@@ -83,8 +91,8 @@ func (c *ConnectionsStorage) GetConnectionsFlat() (ret []types.Connection) {
 func (c *ConnectionsStorage) GetConnection(name string) *types.Connection {
 	conns := c.getConnections()
 
-	var findConn func(string, string, []types.Connection) *types.Connection
-	findConn = func(name, groupName string, conns []types.Connection) *types.Connection {
+	var findConn func(string, string, types.Connections) *types.Connection
+	findConn = func(name, groupName string, conns types.Connections) *types.Connection {
 		for i, conn := range conns {
 			if conn.Type != "group" {
 				if conn.Name == name {
@@ -103,7 +111,7 @@ func (c *ConnectionsStorage) GetConnection(name string) *types.Connection {
 	return findConn(name, "", conns)
 }
 
-// GetGroup get connection group by name
+// GetGroup get one connection group by name
 func (c *ConnectionsStorage) GetGroup(name string) *types.Connection {
 	conns := c.getConnections()
 
@@ -114,7 +122,8 @@ func (c *ConnectionsStorage) GetGroup(name string) *types.Connection {
 	}
 	return nil
 }
-func (c *ConnectionsStorage) saveConnections(conns []types.Connection) error {
+
+func (c *ConnectionsStorage) saveConnections(conns types.Connections) error {
 	b, err := yaml.Marshal(&conns)
 	if err != nil {
 		return err
@@ -126,7 +135,7 @@ func (c *ConnectionsStorage) saveConnections(conns []types.Connection) error {
 }
 
 // CreateConnection create new connection
-func (c *ConnectionsStorage) CreateConnection(param types.Connection) error {
+func (c *ConnectionsStorage) CreateConnection(param types.ConnectionConfig) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -146,18 +155,24 @@ func (c *ConnectionsStorage) CreateConnection(param types.Connection) error {
 		}
 	}
 	if group != nil {
-		group.Connections = append(group.Connections, param)
+		group.Connections = append(group.Connections, types.Connection{
+			ConnectionConfig: param,
+		})
 	} else {
 		if len(param.Group) > 0 {
 			// no group matched, create new group
 			conns = append(conns, types.Connection{
 				Type: "group",
-				Connections: []types.Connection{
-					param,
+				Connections: types.Connections{
+					types.Connection{
+						ConnectionConfig: param,
+					},
 				},
 			})
 		} else {
-			conns = append(conns, param)
+			conns = append(conns, types.Connection{
+				ConnectionConfig: param,
+			})
 		}
 	}
 
@@ -165,14 +180,14 @@ func (c *ConnectionsStorage) CreateConnection(param types.Connection) error {
 }
 
 // UpdateConnection update existing connection by name
-func (c *ConnectionsStorage) UpdateConnection(name string, cparam types.Connection) error {
+func (c *ConnectionsStorage) UpdateConnection(name string, param types.ConnectionConfig) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	conns := c.getConnections()
 	var updated bool
-	var retrieve func(conns []types.Connection, name string, param types.ConnectionConfig) error
-	retrieve = func(conns []types.Connection, name string, param types.ConnectionConfig) error {
+	var retrieve func(types.Connections, string, types.ConnectionConfig) error
+	retrieve = func(conns types.Connections, name string, param types.ConnectionConfig) error {
 		for i, conn := range conns {
 			if conn.Type != "group" {
 				if name != param.Name && conn.Name == param.Name {
@@ -184,8 +199,7 @@ func (c *ConnectionsStorage) UpdateConnection(name string, cparam types.Connecti
 					updated = true
 				}
 			} else {
-				err := retrieve(conn.Connections, name, param)
-				if err != nil {
+				if err := retrieve(conn.Connections, name, param); err != nil {
 					return err
 				}
 			}
@@ -193,7 +207,7 @@ func (c *ConnectionsStorage) UpdateConnection(name string, cparam types.Connecti
 		return nil
 	}
 
-	err := retrieve(conns, name, cparam.ConnectionConfig)
+	err := retrieve(conns, name, param)
 	if err != nil {
 		return err
 	}
@@ -235,27 +249,27 @@ func (c *ConnectionsStorage) DeleteConnection(name string) error {
 	return c.saveConnections(conns)
 }
 
-// SaveSortedConnections save connection after sort
-func (c *ConnectionsStorage) SaveSortedConnections(sortedConns []types.Connection) error {
+// SaveSortedConnection save connection after sort
+func (c *ConnectionsStorage) SaveSortedConnection(sortedConns types.Connections) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	conns := c.GetConnectionsFlat()
 	takeConn := func(name string) (types.Connection, bool) {
-		idx, ok := sliceutil.Find(conns, func(i int) bool {
-			return conns[i].Name == name
+		idx := slices.IndexFunc(conns, func(connection types.Connection) bool {
+			return connection.Name == name
 		})
-		if ok {
+		if idx >= 0 {
 			ret := conns[idx]
 			conns = append(conns[:idx], conns[idx+1:]...)
 			return ret, true
 		}
 		return types.Connection{}, false
 	}
-	var replaceConn func(connections []types.Connection) []types.Connection
-	replaceConn = func(connections []types.Connection) []types.Connection {
-		var newConns []types.Connection
-		for _, conn := range conns {
+	var replaceConn func(connections types.Connections) types.Connections
+	replaceConn = func(cons types.Connections) types.Connections {
+		var newConns types.Connections
+		for _, conn := range cons {
 			if conn.Type == "group" {
 				newConns = append(newConns, types.Connection{
 					ConnectionConfig: types.ConnectionConfig{
@@ -265,8 +279,8 @@ func (c *ConnectionsStorage) SaveSortedConnections(sortedConns []types.Connectio
 					Connections: replaceConn(conn.Connections),
 				})
 			} else {
-				if newConn, ok := takeConn(conn.Name); ok {
-					newConns = append(newConns, newConn)
+				if foundConn, ok := takeConn(conn.Name); ok {
+					newConns = append(newConns, foundConn)
 				}
 			}
 		}
@@ -276,7 +290,7 @@ func (c *ConnectionsStorage) SaveSortedConnections(sortedConns []types.Connectio
 	return c.saveConnections(conns)
 }
 
-// CreateGroup create new group
+// CreateGroup create a new group
 func (c *ConnectionsStorage) CreateGroup(name string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -322,7 +336,7 @@ func (c *ConnectionsStorage) RenameGroup(name, newName string) error {
 	return c.saveConnections(conns)
 }
 
-// DeleteGroup remove special group, include all connections under it
+// DeleteGroup remove specified group, include all connections under it
 func (c *ConnectionsStorage) DeleteGroup(group string, includeConnection bool) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()

@@ -1,128 +1,133 @@
-<script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
-import useDialog from '@/stores/dialog'
-import useTabStore from '@/stores/tab'
-import useConnectionStore from '@/stores/connections'
-import type { TabItem } from '@/stores/tab'
-import {
-  NForm,
-  NFormItem,
-  NInputNumber,
-  NButton,
-} from 'naive-ui'
-interface TtlForm {
-  ttl: number
-}
+<script setup>
+import { computed, reactive, ref, watchEffect } from 'vue'
+import useDialog from 'stores/dialog'
+import useBrowserStore from 'stores/browser'
+import { useI18n } from 'vue-i18n'
+import { isEmpty, size } from 'lodash'
+import TtlInput from '@/components/common/TtlInput.vue'
 
-interface UpdateTTLParams {
-  server: string
-  db: number
-  key: string
-  ttl: number
-}
-
-const ttlForm = reactive<TtlForm>({
-  ttl: -1,
+const ttlForm = reactive({
+    server: '',
+    db: 0,
+    key: '',
+    keys: [],
+    ttl: -1,
+    unit: 1,
 })
 
-const formLabelWidth = '80px'
 const dialogStore = useDialog()
-const connectionStore = useConnectionStore()
-const tabStore = useTabStore()
+const browserStore = useBrowserStore()
 
-const currentServer = ref<string>('')
-const currentKey = ref<string>('')
-const currentDB = ref<number>(0)
-
-watch(
-    () => dialogStore.ttlDialogVisible,
-    (visible) => {
-      if (visible) {
+watchEffect(() => {
+    if (dialogStore.ttlDialogVisible) {
         // get ttl from current tab
-        const tab: TabItem | null = tabStore.currentTab
-        if (tab != null) {
-          if (tab.ttl !== undefined && tab.ttl >= 0) {
-            ttlForm.ttl = tab.ttl
-          }
-          currentServer.value = tab.name
-          currentDB.value = tab.db || 0
-          currentKey.value = tab.key || ''
+        const { server, db, key, keys, ttl } = dialogStore.ttlParam
+        ttlForm.server = server
+        ttlForm.db = db
+        ttlForm.key = key
+        ttlForm.keys = keys
+        ttlForm.unit = 1
+        if (ttl < 0) {
+            // forever
+            ttlForm.ttl = -1
+        } else {
+            ttlForm.ttl = ttl
         }
-      }
+        procssing.value = false
     }
-)
+})
+
+const procssing = ref(false)
+const isBatchAction = computed(() => {
+    return !isEmpty(ttlForm.keys)
+})
+
+const title = computed(() => {
+    if (isBatchAction.value) {
+        return () => i18n.t('dialogue.ttl.title_batch', { count: size(ttlForm.keys) })
+    } else {
+        return () => i18n.t('dialogue.ttl.title')
+    }
+})
+
+const i18n = useI18n()
+const quickOption = [
+    { value: -1, unit: 1, label: 'interface.forever' },
+    { value: 10, unit: 1, label: 'common.second' },
+    { value: 1, unit: 60, label: 'common.minute' },
+    { value: 1, unit: 3600, label: 'common.hour' },
+    { value: 1, unit: 86400, label: 'common.day' },
+]
+
+const onQuickSet = (opt) => {
+    ttlForm.ttl = opt.value
+    ttlForm.unit = opt.unit
+}
 
 const onClose = () => {
-  dialogStore.closeTTLDialog()
+    dialogStore.closeTTLDialog()
 }
 
 const onConfirm = async () => {
-  try {
-    const tab: TabItem | null = tabStore.currentTab
-    if (tab == null) {
-      return
+    try {
+        procssing.value = true
+        const ttl = ttlForm.ttl * (ttlForm.unit || 1)
+        let success = false
+        if (isBatchAction.value) {
+            success = await browserStore.setTTLs(ttlForm.server, ttlForm.db, ttlForm.keys, ttl)
+        } else {
+            success = await browserStore.setTTL(ttlForm.server, ttlForm.db, ttlForm.key, ttl)
+        }
+        if (success) {
+        }
+    } catch (e) {
+        $message.error(e.message || 'set ttl fail')
+    } finally {
+        procssing.value = false
+        dialogStore.closeTTLDialog()
     }
-    const success = await connectionStore.setTTL(tab.name, tab.db || 0, tab.key || '', ttlForm.ttl)
-    if (success) {
-      tabStore.updateTTL({
-        server: currentServer.value,
-        db: currentDB.value,
-        key: currentKey.value,
-        ttl: ttlForm.ttl,
-      } as UpdateTTLParams)
-    }
-  } catch (e: any) {
-  } finally {
-    dialogStore.closeTTLDialog()
-  }
 }
 </script>
-<!--Forever 按钮界面-->
-<template>
-  <n-modal
-      v-model:show="dialogStore.ttlDialogVisible"
-      :closable="false"
-      :close-on-esc="false"
-      :mask-closable="false"
-      :show-icon="false"
-      :title="$t('set_ttl')"
-      preset="dialog"
-      transform-origin="center"
-  >
-    <n-form
-        :label-width="formLabelWidth"
-        :model="ttlForm"
-        :show-require-mark="false"
-        label-align="right"
-        label-placement="left"
-    >
-      <n-form-item :label="$t('key')">
-        <n-input :value="currentKey" readonly />
-      </n-form-item>
-      <n-form-item :label="$t('ttl')" required>
-        <n-input-number
-            v-model:value="ttlForm.ttl"
-            :max="Number.MAX_SAFE_INTEGER"
-            :min="-1"
-            style="width: 100%"
-        >
-          <template #suffix>
-            {{ $t('second') }}
-          </template>
-        </n-input-number>
-      </n-form-item>
-    </n-form>
 
-    <template #action>
-      <div class="flex-item-expand">
-        <n-button @click="ttlForm.ttl = -1">{{ $t('persist_key') }}</n-button>
-      </div>
-      <div class="flex-item n-dialog__action">
-        <n-button @click="onClose">{{ $t('cancel') }}</n-button>
-        <n-button type="primary" @click="onConfirm">{{ $t('save') }}</n-button>
-      </div>
-    </template>
-  </n-modal>
+<template>
+    <n-modal
+        v-model:show="dialogStore.ttlDialogVisible"
+        :closable="false"
+        :mask-closable="false"
+        :negative-button-props="{ focusable: false, size: 'medium' }"
+        :negative-text="$t('common.cancel')"
+        :on-negative-click="onClose"
+        :on-positive-click="onConfirm"
+        :positive-button-props="{ focusable: false, size: 'medium', loading: procssing }"
+        :positive-text="$t('common.save')"
+        :show-icon="false"
+        :title="title"
+        close-on-esc
+        preset="dialog"
+        transform-origin="center"
+        @esc="onClose">
+        <n-form :model="ttlForm" :show-require-mark="false" label-placement="top">
+            <n-form-item v-if="!isBatchAction" :label="$t('common.key')">
+                <n-input :value="ttlForm.key" readonly />
+            </n-form-item>
+            <n-form-item :label="$t('interface.ttl')" required>
+                <ttl-input v-model:unit="ttlForm.unit" v-model:value="ttlForm.ttl" />
+            </n-form-item>
+            <n-form-item :label="$t('dialogue.ttl.quick_set')" :show-feedback="false">
+                <n-space :wrap="true" :wrap-item="false">
+                    <n-button
+                        v-for="(opt, i) in quickOption"
+                        :key="i"
+                        round
+                        secondary
+                        size="small"
+                        @click="onQuickSet(opt)">
+                        {{ (opt.value > 0 ? opt.value + ' ' : '') + $t(opt.label) }}
+                    </n-button>
+                </n-space>
+            </n-form-item>
+        </n-form>
+    </n-modal>
 </template>
 
 <style lang="scss" scoped></style>

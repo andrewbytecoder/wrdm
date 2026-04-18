@@ -1,104 +1,119 @@
-<script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
-import useDialog from '@/stores/dialog'
-import { useMessage } from 'naive-ui'
+<script setup>
+import { computed, reactive, ref, watchEffect } from 'vue'
+import useDialog from 'stores/dialog'
 import { useI18n } from 'vue-i18n'
-import useConnectionStore from '@/stores/connections'
-import { isEmpty } from 'lodash'
+import useConnectionStore from 'stores/connections'
+import { every, get, includes, isEmpty } from 'lodash'
 
 /**
  * Dialog for create or rename group
  */
 
-interface GroupForm {
-  name: string
-}
+const i18n = useI18n()
+const editGroup = ref('')
+const groupForm = reactive({
+    name: '',
+})
+const groupFormRef = ref(null)
 
-const editGroup = ref<string>('')
-const groupForm = reactive<GroupForm>({
-  name: '',
+const formRules = computed(() => {
+    const requiredMsg = i18n.t('dialogue.field_required')
+    const illegalChars = ['/', '\\']
+    return {
+        name: [
+            { required: true, message: requiredMsg, trigger: 'input' },
+            {
+                validator: (rule, value) => {
+                    return every(illegalChars, (c) => !includes(value, c))
+                },
+                message: i18n.t('dialogue.illegal_characters'),
+                trigger: 'input',
+            },
+        ],
+    }
 })
 
-const isRenameMode = computed<boolean>(() => !isEmpty(editGroup.value))
+const isRenameMode = computed(() => !isEmpty(editGroup.value))
 
 const dialogStore = useDialog()
 const connectionStore = useConnectionStore()
-watch(
-    () => dialogStore.groupDialogVisible,
-    (visible) => {
-      if (visible) {
+watchEffect(() => {
+    if (dialogStore.groupDialogVisible) {
         groupForm.name = editGroup.value = dialogStore.editGroup
-      }
     }
-)
+})
 
-const i18n = useI18n()
-const message = useMessage()
-const onConfirm = async (): Promise<void> => {
-  try {
-    const { name } = groupForm
-    let result
-    if (isRenameMode.value) {
-      result = await connectionStore.renameGroup(editGroup.value, name)
-      const { success, msg } = result
-      if (success) {
-        message.success(i18n.t('handle_succ'))
-      } else {
-        message.error(msg)
-      }
-    } else {
-      result = await connectionStore.createGroup(name)
-      const { success, msg } = result
-      if (success) {
-        message.success(i18n.t('handle_succ'))
-      } else {
-        message.error(msg)
-      }
+const onConfirm = async () => {
+    try {
+        await groupFormRef.value?.validate((errs) => {
+            const err = get(errs, '0.0.message')
+            if (err != null) {
+                $message.error(err)
+            }
+        })
+
+        const { name } = groupForm
+        if (isRenameMode.value) {
+            const { success, msg } = await connectionStore.renameGroup(editGroup.value, name)
+            if (success) {
+                $message.success(i18n.t('dialogue.handle_succ'))
+            } else {
+                $message.error(msg)
+            }
+        } else {
+            const { success, msg } = await connectionStore.createGroup(name)
+            if (success) {
+                $message.success(i18n.t('dialogue.handle_succ'))
+            } else {
+                $message.error(msg)
+            }
+        }
+    } catch (e) {
+        const msg = get(e, 'message')
+        if (!isEmpty(msg)) {
+            $message.error(msg)
+        }
     }
-  } catch (e: any) {
-    message.error(e.message)
-  }
-  onClose()
 }
 
-const onClose = (): void => {
-  if (isRenameMode.value) {
-    dialogStore.closeNewGroupDialog()
-  } else {
-    dialogStore.closeRenameGroupDialog()
-  }
+const onClose = () => {
+    if (isRenameMode.value) {
+        dialogStore.closeNewGroupDialog()
+    } else {
+        dialogStore.closeRenameGroupDialog()
+    }
 }
 </script>
 
 <template>
-  <n-modal
-      v-model:show="dialogStore.groupDialogVisible"
-      :closable="false"
-      :close-on-esc="false"
-      :mask-closable="false"
-      :negative-button-props="{ size: 'medium' }"
-      :negative-text="$t('cancel')"
-      :positive-button-props="{ size: 'medium' }"
-      :positive-text="$t('confirm')"
-      :show-icon="false"
-      :title="isRenameMode ? $t('rename_group') : $t('new_group')"
-      preset="dialog"
-      transform-origin="center"
-      @positive-click="onConfirm"
-      @negative-click="onClose"
-  >
-    <n-form
-        :model="groupForm"
-        :show-require-mark="false"
-        label-align="left"
-        label-placement="left"
-        label-width="auto"
-    >
-      <n-form-item :label="$t('group_name')" required>
-        <n-input v-model:value="groupForm.name" placeholder="" />
-      </n-form-item>
-    </n-form>
-  </n-modal>
+    <n-modal
+        v-model:show="dialogStore.groupDialogVisible"
+        :closable="false"
+        :mask-closable="false"
+        :negative-button-props="{ size: 'medium' }"
+        :negative-text="$t('common.cancel')"
+        :positive-button-props="{ size: 'medium' }"
+        :positive-text="$t('common.confirm')"
+        :show-icon="false"
+        :title="isRenameMode ? $t('dialogue.group.rename') : $t('dialogue.group.new')"
+        close-on-esc
+        preset="dialog"
+        transform-origin="center"
+        @esc="onClose"
+        @positive-click="onConfirm"
+        @negative-click="onClose">
+        <n-form
+            ref="groupFormRef"
+            :model="groupForm"
+            :rules="formRules"
+            :show-label="false"
+            :show-require-mark="false"
+            label-placement="top">
+            <n-form-item :label="$t('dialogue.group.name')" path="name" required>
+                <n-input v-model:value="groupForm.name" placeholder="" />
+            </n-form-item>
+        </n-form>
+    </n-modal>
 </template>
 
 <style lang="scss" scoped></style>

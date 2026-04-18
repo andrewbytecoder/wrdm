@@ -1,19 +1,45 @@
-import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import path from 'path'
+import AutoImport from 'unplugin-auto-import/vite'
+import Icons from 'unplugin-icons/vite'
+import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
+import Components from 'unplugin-vue-components/vite'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite'
+
+const rootPath = fileURLToPath(new URL('.', import.meta.url))
+const wailsGeneratedRuntime = join(rootPath, 'wailsjs', 'runtime', 'runtime.js')
+const wailsAlias = existsSync(wailsGeneratedRuntime) ? join(rootPath, 'wailsjs') : join(rootPath, 'wailsjs-shim')
 
 // https://vitejs.dev/config/
 export default defineConfig({
-    define: {
-        __VUE_OPTIONS_API__: true,
-        __VUE_PROD_DEVTOOLS__: false,
-        __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-    },
-    resolve: {
-        alias: {
-            '@': path.resolve(__dirname, 'src'),
-            '@wails': path.resolve(__dirname, 'wailsjs'),
+  plugins: [
+    vue(),
+    AutoImport({
+      imports: [
+        {
+          'naive-ui': ['useDialog', 'useMessage', 'useNotification', 'useLoadingBar'],
         },
+      ],
+    }),
+    Components({
+      resolvers: [NaiveUiResolver()],
+    }),
+    Icons(),
+  ],
+  resolve: {
+    alias: {
+      '@': rootPath + '/src',
+      stores: rootPath + '/src/stores',
+      wailsjs: wailsAlias,
     },
-    plugins: [vue()],
+  },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler',
+      } as Record<string, string>,
+    },
+  },
 })

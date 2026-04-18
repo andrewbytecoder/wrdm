@@ -1,87 +1,85 @@
-<script setup lang="ts">
-import useDialogStore from '@/stores/dialog'
+<script setup>
+import useDialogStore from 'stores/dialog'
 import { NIcon, useThemeVars } from 'naive-ui'
 import AddGroup from '@/components/icons/AddGroup.vue'
 import AddLink from '@/components/icons/AddLink.vue'
-import ConnectionTree from '@/components/sidebar/ConnectionTree.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import Filter from '@/components/icons/Filter.vue'
-import Unlink from '@/components/icons/Unlink.vue'
-import useConnectionStore from '@/stores/connections'
+import ConnectionTree from './ConnectionTree.vue'
 import { ref } from 'vue'
-import { useI18n } from "vue-i18n";
+import More from '@/components/icons/More.vue'
+import Import from '@/components/icons/Import.vue'
+import { useRender } from '@/utils/render'
+import Export from '@/components/icons/Export.vue'
+import useConnectionStore from 'stores/connections'
 
 const themeVars = useThemeVars()
 const dialogStore = useDialogStore()
 const connectionStore = useConnectionStore()
-
+const render = useRender()
 const filterPattern = ref('')
 
-const onDisconnectAll = () => {
-  connectionStore.closeAllConnection()
+const moreOptions = [
+    { key: 'import', label: 'interface.import_conn', icon: Import },
+    { key: 'export', label: 'interface.export_conn', icon: Export },
+]
+
+const onSelectOptions = async (select) => {
+    switch (select) {
+        case 'import':
+            await connectionStore.importConnections()
+            await connectionStore.initConnections(true)
+            break
+        case 'export':
+            await connectionStore.exportConnections()
+            break
+    }
 }
-
-const t = useI18n().t
-
 </script>
 
 <template>
-  <div  v-if="true" class="nav-pane-container flex-box-v">
-<!--      上层的连接列表-->
-    <ConnectionTree :filterPattern="filterPattern" />
+    <div class="nav-pane-container flex-box-v">
+        <connection-tree :filter-pattern="filterPattern" />
 
-    <!-- bottom function bar -->
-    <!--      @click 是注册 子组件点击事件相应情况 -->
-    <!--      子组件后面跟的所有东西都是透传给子组件的参数-->
-<!--    这里的 tTooltip 会自动转化为 i18n 依赖 IconButton 进行实现-->
-    <div class="nav-pane-bottom flex-box-h">
-      <IconButton
-          :icon="AddLink"
-          size="20"
-          stroke-width="4"
-          tTooltip="new_conn"
-          @click="dialogStore.openNewDialog()"
-      />
-      <IconButton
-          :icon="AddGroup"
-          size="20"
-          stroke-width="4"
-          tTooltip="new_group"
-          @click="dialogStore.openNewGroupDialog()"
-      />
-      <icon-button
-          :disabled="!connectionStore.anyConnectionOpened"
-          :icon="Unlink"
-          size="20"
-          stroke-width="4"
-          t-tooltip="disconnect_all"
-          @click="onDisconnectAll"
-      />
-      <n-input v-model:value="filterPattern" :placeholder="$t('filter')" clearable>
-        <template #prefix>
-          <n-icon :component="Filter" size="20" />
-        </template>
-      </n-input>
+        <!-- bottom function bar -->
+        <div class="nav-pane-bottom nav-pane-func flex-box-h">
+            <icon-button
+                :button-class="['nav-pane-func-btn']"
+                :icon="AddLink"
+                :stroke-width="3.5"
+                size="20"
+                t-tooltip="interface.new_conn"
+                @click="dialogStore.openNewDialog()" />
+            <icon-button
+                :button-class="['nav-pane-func-btn']"
+                :icon="AddGroup"
+                :stroke-width="3.5"
+                size="20"
+                t-tooltip="interface.new_group"
+                @click="dialogStore.openNewGroupDialog()" />
+            <n-divider vertical />
+            <n-input v-model:value="filterPattern" :autofocus="false" :placeholder="$t('interface.filter')" clearable>
+                <template #prefix>
+                    <n-icon :component="Filter" size="20" />
+                </template>
+            </n-input>
+            <n-dropdown
+                :options="moreOptions"
+                :render-icon="({ icon }) => render.renderIcon(icon, { strokeWidth: 3.5 })"
+                :render-label="({ label }) => $t(label)"
+                placement="top-end"
+                style="min-width: 130px"
+                trigger="click"
+                @select="onSelectOptions">
+                <icon-button :button-class="['nav-pane-func-btn']" :icon="More" :stroke-width="3.5" size="20" />
+            </n-dropdown>
+        </div>
     </div>
-  </div>
 </template>
 
-<!--<style lang="scss" scoped>-->
-<!--.nav-pane-container {-->
-<!--  overflow: hidden;-->
-<!--  background-color: var(&#45;&#45;bg-color);-->
-
-<!--  .nav-pane-bottom {-->
-<!--    align-items: center;-->
-<!--    gap: 5px;-->
-<!--    padding: 3px 3px 5px 5px;-->
-<!--  }-->
-<!--}-->
-<!--</style>-->
-
-<style scoped lang="scss">
+<style lang="scss" scoped>
 .nav-pane-bottom {
-  color: v-bind('themeVars.iconColor');
-  border-top: v-bind('themeVars.borderColor') 1px solid;
+    color: v-bind('themeVars.iconColor');
+    border-top: v-bind('themeVars.borderColor') 1px solid;
 }
 </style>

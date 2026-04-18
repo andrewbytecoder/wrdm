@@ -1,18 +1,8 @@
-import { ConnectionType } from '@/consts/connection_type'
-import { useI18n } from 'vue-i18n'
+import { ConnectionType } from './connection_type'
 
-const i18n = useI18n()
-export const contextMenuKey: Record<ConnectionType.Server, { key: string; label: string }> = {
-    [ConnectionType.Server]: {
-        key: '',
-        label: '',
-    },
-};
-
-//
-// export const contextMenuKey: { [ConnectionType.Server]: { key: string; label: string } } = {
-//     [ConnectionType.Server]: {
-//         key: '',
-//         label: '',
-//     },
-// }
+export const contextMenuKey = {
+  [ConnectionType.Server]: {
+    key: '',
+    label: '',
+  },
+}

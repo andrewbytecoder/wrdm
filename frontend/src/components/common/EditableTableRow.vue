@@ -1,31 +1,26 @@
-<script setup lang="ts">
+<script setup>
 import { NInput } from 'naive-ui'
 
-interface Props {
-  isEdit?: boolean
-  value?: string | [string, string] | null | undefined
-  onUpdateValue?: Function | Array<any>
-}
+const props = defineProps({
+    isEdit: Boolean,
+    value: [String, Number],
+    onUpdateValue: [Function, Array],
+})
 
-const props = defineProps<Props>()
+const emit = defineEmits(['update:value'])
 
-const emit = defineEmits<{
-  (e: 'update:value', val: string | number): void
-}>()
-
-const handleUpdateValue = (val: string | number) => {
-  emit('update:value', val)
+const handleUpdateValue = (val) => {
+    emit('update:value', val)
 }
 </script>
 
 <template>
-  <div style="min-height: 22px">
-    <template v-if="props.isEdit">
-      <!-- TODO: ADD FULL SCREEN EDIT SUPPORT -->
-      <n-input :value="props.value" @update:value="handleUpdateValue" />
-    </template>
-    <template v-else>
-      {{ props.value }}
-    </template>
-  </div>
+    <div style="min-height: 22px">
+        <template v-if="props.isEdit">
+            <n-input :value="props.value" @update:value="handleUpdateValue" />
+        </template>
+        <template v-else>
+            {{ props.value }}
+        </template>
+    </div>
 </template>

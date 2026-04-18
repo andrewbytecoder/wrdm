@@ -1,240 +1,241 @@
-<script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { types } from '@/consts/support_redis_type'
-import ContentValueHash from '@/components/content_value/ContentValueHash.vue'
-import ContentValueList from '@/components/content_value/ContentValueList.vue'
-import ContentValueString from '@/components/content_value/ContentValueString.vue'
-import ContentValueSet from '@/components/content_value/ContentValueSet.vue'
-import ContentValueZset from '@/components/content_value/ContentValueZSet.vue'
-import { get, isEmpty, map, toUpper } from 'lodash'
-import useTabStore, {TabItem} from '@/stores/tab'
-import type { Component } from 'vue'
-import { useDialog } from 'naive-ui'
-import useConnectionStore from '@/stores/connections'
-import { useI18n } from 'vue-i18n'
-import { useConfirmDialog } from '@/utils/confirm_dialog'
+<script setup>
+import { computed, nextTick, ref, watch } from 'vue'
+import { find, map, toUpper } from 'lodash'
+import useTabStore from 'stores/tab'
 import ContentServerStatus from '@/components/content_value/ContentServerStatus.vue'
+import Status from '@/components/icons/Status.vue'
+import { useThemeVars } from 'naive-ui'
+import { BrowserTabType } from '@/consts/browser_tab_type'
+import Terminal from '@/components/icons/Terminal.vue'
+import Log from '@/components/icons/Log.vue'
+import Detail from '@/components/icons/Detail.vue'
+import ContentValueWrapper from '@/components/content_value/ContentValueWrapper.vue'
+import ContentCli from '@/components/content_value/ContentCli.vue'
+import Monitor from '@/components/icons/Monitor.vue'
+import ContentSlog from '@/components/content_value/ContentSlog.vue'
+import ContentMonitor from '@/components/content_value/ContentMonitor.vue'
+import { decodeRedisKey } from '@/utils/key_convert'
+import ContentPubsub from '@/components/content_value/ContentPubsub.vue'
+import Subscribe from '@/components/icons/Subscribe.vue'
 
-//  主内容界面
-
-const serverInfo = ref({})
-const autoRefresh = ref(false)
-const serverName = computed(():string => {
-  if (tabContent.value != null) {
-    return tabContent.value.name
-  }
-  return ''
-})
-
-const loadingServerInfo = ref<boolean>(false)
-let refreshingServerInfo = false
+const themeVars = useThemeVars()
 
 /**
- * refresh server status info
- * @param {boolean} [force] force refresh will show loading indicator
- * @returns {Promise<void>}
+ * @typedef {Object} ServerStatusItem
+ * @property {string} name
+ * @property {Object} info
+ * @property {boolean} autoRefresh
+ * @property {boolean} loading loading status for refresh
+ * @property {boolean} autoLoading loading status for auto refresh
  */
-const refreshInfo = async (force: boolean): Promise<void> => {
-  if (refreshingServerInfo) return
-  refreshingServerInfo = true
-  if (force) loadingServerInfo.value = true
-  try {
-    if (!isEmpty(serverName.value) && connectionStore.isConnected(serverName.value)) {
-      serverInfo.value = await connectionStore.getServerInfo(serverName.value)
-    }
-  } catch (e: any) {
-    console.warn('refresh server info failed', e)
-  } finally {
-    if (force) loadingServerInfo.value = false
-    refreshingServerInfo = false
-  }
-}
 
-let intervalId: ReturnType<typeof setInterval> | undefined
-onMounted(() => {
-  refreshInfo(true)
-  intervalId = setInterval(() => {
-    if (autoRefresh.value) {
-      refreshInfo(false)
-    }
-  }, 5000)
+const props = defineProps({
+    server: String,
 })
 
-onUnmounted(() => {
-  if (intervalId != null) {
-    clearInterval(intervalId)
-    intervalId = undefined
-  }
-})
-
-interface TabInfo {
-  key: string
-  label: string
-}
-
-const valueComponents: Record<string, Component> = {
-  [types.STRING]: ContentValueString,
-  [types.HASH]: ContentValueHash,
-  [types.LIST]: ContentValueList,
-  [types.SET]: ContentValueSet,
-  [types.ZSET]: ContentValueZset,
-}
-
-const dialog = useDialog()
-const connectionStore = useConnectionStore()
 const tabStore = useTabStore()
-
-//  将有多少个tabs转换成页面标签
-const tab = computed((): TabInfo[] =>
+const tab = computed(() =>
     map(tabStore.tabs, (item) => ({
-      key: item.name,
-      label: item.title || '',
-    }))
+        key: item.name,
+        label: item.title,
+    })),
 )
 
+const tabContent = computed(() => {
+    const tab = find(tabStore.tabs, { name: props.server })
+    if (tab == null) {
+        return {}
+    }
+    return {
+        name: tab.name,
+        subTab: tab.subTab,
+        type: toUpper(tab.type),
+        db: tab.db,
+        keyPath: tab.keyCode != null ? decodeRedisKey(tab.keyCode) : tab.key,
+        keyCode: tab.keyCode,
+        ttl: tab.ttl,
+        value: tab.value,
+        size: tab.size || 0,
+        length: tab.length || 0,
+        decode: tab.decode,
+        format: tab.format,
+        matchPattern: tab.matchPattern || '',
+        end: tab.end === true,
+        loading: tab.loading === true,
+    }
+})
+
+const isBlankValue = computed(() => {
+    return tabContent.value?.keyPath == null
+})
+
+const selectedSubTab = computed(() => {
+    const { subTab = BrowserTabType.Status } = tabStore.currentTab || {}
+    return subTab
+})
+
+// BUG: naive-ui tabs will set the bottom line to '0px' after switch to another page and back again
+// watch parent tabs' changing and call 'syncBarPosition' manually
+const tabsRef = ref(null)
+const cliRef = ref(null)
 watch(
-    () => tabStore.nav,
-    (nav) => {
-      if (nav === 'browser') {
-        refreshInfo(true)
-      }
-    }
+    () => tabContent.value?.name,
+    (name) => {
+        if (name === props.server) {
+            nextTick().then(() => {
+                tabsRef.value?.syncBarPosition()
+                cliRef.value?.resizeTerm()
+            })
+        }
+    },
 )
-
-const tabContent = computed((): TabItem | null => {
-  const tab = tabStore.currentTab
-  if (tab == null) {
-    return null
-  }
-  return {
-    blank: false,
-    server: "",
-    name: tab.name,
-    type: toUpper(tab.type || ''),
-    db: tab.db,
-    key: tab.key,
-    ttl: tab.ttl,
-    value: tab.value
-  }
-})
-
-const showServerStatus = computed(() => {
-  return tabContent.value == null || isEmpty(tabContent.value.key)
-})
-
-const showNonexists = computed(() => {
-  return tabContent.value?.value == null
-})
-
-const onUpdateValue = (tabIndex: number) => {
-  tabStore.switchTab(tabIndex)
-}
-
-// const onAddTab = () => {
-//   tabStore.newBlankTab()
-// }
-/**
- * reload current selection key
- * @returns {Promise<null>}
- */
-const onReloadKey = async () => {
-  const tab = tabStore.currentTab
-  if (tab == null || isEmpty(tab.key)) {
-    return null
-  }
-  await connectionStore.loadKeyValue(tab.name, tab.db as number, tab.key)
-}
-const i18n = useI18n()
-const confirmDialog = useConfirmDialog()
-//  这里的参数由 value传入的类型是什么来决定
-const onCloseTab = (tabIndex: number) => {
-  confirmDialog.warning(i18n.t('close_confirm'), () => {
-    const tab = get(tabStore.tabs, tabIndex)
-    if (tab != null) {
-      connectionStore.closeConnection(tab.name)
-    }
-  })
-
-
-  tabStore.removeTab(tabIndex)
-}
 </script>
 
 <template>
-  <div class="content-container flex-box-v">
-<!--    value 传入的事啥，关闭的时候传入的参数也是啥-->
-    <n-tabs
-        v-model:value="tabStore.activatedIndex"
-        :closable="true"
-        size="small"
-        type="card"
-        :animated="true"
-        @close="onCloseTab"
-        @update:value="onUpdateValue"
-    >
-<!--      tab的具体内容-->
-      <n-tab v-for="(t, i) in tab" :key="i" :name="i">
-                <n-ellipsis style="max-width: 150px">{{ t.label }}</n-ellipsis>
-      </n-tab>
-    </n-tabs>
-    <!-- TODO: add loading status -->
-<!-- 显示服务状态-->
-    <div v-if="showServerStatus" class="content-container flex-item-expand flex-box-v">
-      <!-- select nothing or select server node, display server status -->
-      <content-server-status
-          v-model:auto-refresh="autoRefresh"
-          :server="serverName"
-          :info="serverInfo"
-          :loading="loadingServerInfo"
-          @refresh="refreshInfo(true)"
-      />
+    <div class="content-container flex-box-v">
+        <n-tabs
+            ref="tabsRef"
+            :tabs-padding="5"
+            :theme-overrides="{
+                tabFontWeightActive: 'normal',
+                tabGapSmallLine: '10px',
+                tabGapMediumLine: '10px',
+                tabGapLargeLine: '10px',
+            }"
+            :value="selectedSubTab"
+            class="content-sub-tab"
+            :default-value="BrowserTabType.Status.toString()"
+            pane-class="content-sub-tab-pane"
+            placement="top"
+            tab-style="padding-left: 10px; padding-right: 10px;"
+            type="line"
+            @update:value="tabStore.switchSubTab">
+            <!-- server status pane -->
+            <n-tab-pane :name="BrowserTabType.Status.toString()" display-directive="show:lazy">
+                <template #tab>
+                    <n-space :size="5" :wrap-item="false" align="center" inline justify="center">
+                        <n-icon size="16">
+                            <status
+                                :inverse="selectedSubTab === BrowserTabType.Status.toString()"
+                                :stroke-color="themeVars.tabColor"
+                                stroke-width="4" />
+                        </n-icon>
+                        <span>{{ $t('interface.sub_tab.status') }}</span>
+                    </n-space>
+                </template>
+                <content-server-status
+                    :pause="selectedSubTab !== BrowserTabType.Status.toString()"
+                    :server="props.server" />
+            </n-tab-pane>
+
+            <!-- key detail pane -->
+            <n-tab-pane :name="BrowserTabType.KeyDetail.toString()" display-directive="show:lazy">
+                <template #tab>
+                    <n-space :size="5" :wrap-item="false" align="center" inline justify="center">
+                        <n-icon size="16">
+                            <detail
+                                :inverse="selectedSubTab === BrowserTabType.KeyDetail.toString()"
+                                :stroke-color="themeVars.tabColor"
+                                stroke-width="4" />
+                        </n-icon>
+                        <span>{{ $t('interface.sub_tab.key_detail') }}</span>
+                    </n-space>
+                </template>
+                <content-value-wrapper :blank="isBlankValue" :content="tabContent" />
+            </n-tab-pane>
+
+            <!-- cli pane -->
+            <n-tab-pane :name="BrowserTabType.Cli.toString()" display-directive="show:lazy">
+                <template #tab>
+                    <n-space :size="5" :wrap-item="false" align="center" inline justify="center">
+                        <n-icon size="16">
+                            <terminal
+                                :inverse="selectedSubTab === BrowserTabType.Cli.toString()"
+                                :stroke-color="themeVars.tabColor"
+                                stroke-width="4" />
+                        </n-icon>
+                        <span>{{ $t('interface.sub_tab.cli') }}</span>
+                    </n-space>
+                </template>
+                <content-cli ref="cliRef" :name="props.server" />
+            </n-tab-pane>
+
+            <!-- slow log pane -->
+            <n-tab-pane :name="BrowserTabType.SlowLog.toString()" display-directive="show:lazy">
+                <template #tab>
+                    <n-space :size="5" :wrap-item="false" align="center" inline justify="center">
+                        <n-icon size="16">
+                            <log
+                                :inverse="selectedSubTab === BrowserTabType.SlowLog.toString()"
+                                :stroke-color="themeVars.tabColor"
+                                stroke-width="4" />
+                        </n-icon>
+                        <span>{{ $t('interface.sub_tab.slow_log') }}</span>
+                    </n-space>
+                </template>
+                <content-slog :server="props.server" />
+            </n-tab-pane>
+
+            <!-- command monitor pane -->
+            <n-tab-pane :name="BrowserTabType.CmdMonitor.toString()" display-directive="show:lazy">
+                <template #tab>
+                    <n-space :size="5" :wrap-item="false" align="center" inline justify="center">
+                        <n-icon size="16">
+                            <monitor
+                                :inverse="selectedSubTab === BrowserTabType.CmdMonitor.toString()"
+                                :stroke-color="themeVars.tabColor"
+                                stroke-width="4" />
+                        </n-icon>
+                        <span>{{ $t('interface.sub_tab.cmd_monitor') }}</span>
+                    </n-space>
+                </template>
+                <content-monitor :server="props.server" />
+            </n-tab-pane>
+
+            <!-- pub/sub message pane -->
+            <n-tab-pane :name="BrowserTabType.PubMessage.toString()" display-directive="show:lazy">
+                <template #tab>
+                    <n-space :size="5" :wrap-item="false" align="center" inline justify="center">
+                        <n-icon size="16">
+                            <subscribe
+                                :inverse="selectedSubTab === BrowserTabType.PubMessage.toString()"
+                                :stroke-color="themeVars.tabColor"
+                                stroke-width="4" />
+                        </n-icon>
+                        <span>{{ $t('interface.sub_tab.pub_message') }}</span>
+                    </n-space>
+                </template>
+                <content-pubsub :server="props.server" />
+            </n-tab-pane>
+        </n-tabs>
     </div>
-    <div v-else-if="showNonexists" class="content-container flex-item-expand flex-box-v">
-      <n-empty :description="$t('nonexist_tab_content')" class="empty-content">
-        <template #extra>
-          <n-button @click="onReloadKey">{{ $t('reload') }}</n-button>
-        </template>
-      </n-empty>
-    </div>
-    <component
-        v-else
-        :is="valueComponents[tabContent?.type as string]"
-        :db="tabContent?.db"
-        :key-path="tabContent?.key"
-        :key-type="tabContent?.type"
-        :name="tabContent?.name"
-        :ttl="tabContent?.ttl"
-        :value="tabContent?.value"
-    />
-  </div>
 </template>
 
 <style lang="scss" scoped>
-//@import "content";
-@use "content";
+@use '@/styles/content';
 
 .content-container {
-  padding: 5px;
-  box-sizing: border-box;
+    //padding: 5px 5px 0;
+    //padding-top: 0;
+    box-sizing: border-box;
+    background-color: v-bind('themeVars.tabColor');
+}
+</style>
+
+<style lang="scss">
+.content-sub-tab {
+    background-color: v-bind('themeVars.tabColor');
+    height: 100%;
 }
 
-//.tab-item {
-//    gap: 5px;
-//    padding: 0 5px 0 10px;
-//    align-items: center;
-//    max-width: 150px;
-//
-//    transition: all var(--transition-duration-fast) var(--transition-function-ease-in-out-bezier);
-//
-//    &-label {
-//        font-size: 15px;
-//        text-align: center;
-//    }
-//
-//    &-close {
-//        &:hover {
-//            background-color: rgb(176, 177, 182, 0.4);
-//        }
-//    }
-//}
+.content-sub-tab-pane {
+    padding: 0 !important;
+    height: 100%;
+    background-color: v-bind('themeVars.bodyColor');
+    overflow: hidden;
+}
+
+.n-tabs .n-tabs-bar {
+    transition: none !important;
+}
 </style>

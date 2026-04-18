@@ -1,64 +1,98 @@
-<script setup lang="ts">
-import type {Component} from 'vue'
-import {computed} from 'vue'
-import {NIcon} from 'naive-ui'
+<script setup>
+import { computed, useSlots } from 'vue'
+import { NIcon } from 'naive-ui'
 
-interface Props {
-  tooltip?: string
-  tTooltip?: string
-  icon?: Component
-  size?: number | string
-  color?: string
-  strokeWidth?: number | string
-  border?: boolean
-  disabled?: boolean
-}
-
-const emit = defineEmits<{
-  click: [],
-  // (e: 'click'): void
-  // click: []  vue3
-}>()
-
-//  v-model 只是用来透传 input和update类型数据的语法糖，不适合click事件
-// const click = defineModel('click')
-
-const props = withDefaults(defineProps<Props>(), {
-  tooltip: '',
-  tTooltip: '',
-  icon: () => {},
-  size: 20,
-  color: 'currentColor',
-  strokeWidth: 3,
-  border: false,
-  disabled: false
+const props = defineProps({
+    tooltip: String,
+    tTooltip: String,
+    tooltipDelay: {
+        type: Number,
+        default: 800,
+    },
+    type: String,
+    icon: [String, Object],
+    size: {
+        type: [Number, String],
+        default: 20,
+    },
+    color: {
+        type: String,
+        default: '',
+    },
+    strokeWidth: {
+        type: [Number, String],
+        default: 3,
+    },
+    loading: Boolean,
+    border: Boolean,
+    disabled: Boolean,
+    buttonStyle: [String, Object],
+    buttonClass: [String, Object],
+    small: Boolean,
+    secondary: Boolean,
+    tertiary: Boolean,
 })
+
+const emit = defineEmits(['click'])
+
+const slots = useSlots()
 
 const hasTooltip = computed(() => {
-  return props.tooltip || props.tTooltip
+    return props.tooltip || props.tTooltip || slots.tooltip
 })
-
-
 </script>
 
 <template>
-<!--  是否鼠标放上去有提示-->
-  <n-tooltip v-if="hasTooltip">
-    <template #trigger>
-      <n-button :text="!props.border" :disabled="props.disabled" @click="emit('click')">
-        <n-icon :size="props.size" :color="props.color">
-          <component :is="props.icon" :stroke-width="props.strokeWidth" />
-        </n-icon>
-      </n-button>
-    </template>
-<!--    如果需要转换，优先使用能够进行国际化语言的变量进行显示-->
-    {{ props.tTooltip ? $t(props.tTooltip) : props.tooltip }}
-  </n-tooltip>
-  <n-button v-else :text="!props.border" :disabled="props.disabled" @click="emit('click')">
-    <n-icon :size="props.size" :color="props.color">
-      <component :is="props.icon" :stroke-width="props.strokeWidth" />
-    </n-icon>
-  </n-button>
+    <n-tooltip v-if="hasTooltip" :delay="tooltipDelay" :keep-alive-on-hover="false" :show-arrow="false">
+        <template #trigger>
+            <n-button
+                :class="props.buttonClass"
+                :color="props.color"
+                :disabled="props.disabled"
+                :focusable="false"
+                :loading="loading"
+                :secondary="props.secondary"
+                :size="props.small ? 'small' : ''"
+                :style="props.buttonStyle"
+                :tertiary="props.tertiary"
+                :text="!props.border"
+                :type="props.type"
+                @click.prevent="emit('click')">
+                <template #icon>
+                    <slot>
+                        <n-icon :color="props.color || 'currentColor'" :size="props.size">
+                            <component :is="props.icon" :stroke-width="props.strokeWidth" />
+                        </n-icon>
+                    </slot>
+                </template>
+            </n-button>
+        </template>
+        <slot name="tooltip">
+            {{ props.tTooltip ? $t(props.tTooltip) : props.tooltip }}
+        </slot>
+    </n-tooltip>
+    <n-button
+        v-else
+        :class="props.buttonClass"
+        :color="props.color"
+        :disabled="props.disabled"
+        :focusable="false"
+        :loading="loading"
+        :secondary="props.secondary"
+        :size="props.small ? 'small' : ''"
+        :style="props.buttonStyle"
+        :tertiary="props.tertiary"
+        :text="!props.border"
+        :type="props.type"
+        @click.prevent="emit('click')">
+        <template #icon>
+            <slot>
+                <n-icon :color="props.color || 'currentColor'" :size="props.size">
+                    <component :is="props.icon" :stroke-width="props.strokeWidth" />
+                </n-icon>
+            </slot>
+        </template>
+    </n-button>
 </template>
 
 <style lang="scss"></style>

@@ -1,27 +1,27 @@
 package storage
 
 import (
+	"github.com/vrischmann/userdir"
 	"os"
 	"path"
-
-	"github.com/vrischmann/userdir"
 )
 
-// LocalStorage provides reading and writing application data to the user's
+// localStorage provides reading and writing application data to the user's
 // configuration directory.
-type LocalStorage struct {
+type localStorage struct {
 	ConfPath string
 }
 
-func NewLocalStorage(filename string) *LocalStorage {
-	return &LocalStorage{
-		ConfPath: path.Join(userdir.GetConfigHome(), "WRDM", filename),
+// NewLocalStore returns a localStore instance.
+func NewLocalStore(filename string) *localStorage {
+	return &localStorage{
+		ConfPath: path.Join(userdir.GetConfigHome(), "TinyRDM", filename),
 	}
 }
 
 // Load reads the given file in the user's configuration directory and returns
 // its contents.
-func (l *LocalStorage) Load() ([]byte, error) {
+func (l *localStorage) Load() ([]byte, error) {
 	d, err := os.ReadFile(l.ConfPath)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func (l *LocalStorage) Load() ([]byte, error) {
 
 // Store writes data to the user's configuration directory at the given
 // filename.
-func (l *LocalStorage) Store(data []byte) error {
+func (l *localStorage) Store(data []byte) error {
 	dir := path.Dir(l.ConfPath)
 	if err := ensureDirExists(dir); err != nil {
 		return err

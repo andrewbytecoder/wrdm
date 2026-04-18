@@ -1,48 +1,42 @@
-<script setup lang="ts">
+<script setup>
 import { ref } from 'vue'
-import {compact, isEmpty, uniq} from 'lodash'
+import { compact, isEmpty, uniq } from 'lodash'
 import Add from '@/components/icons/Add.vue'
 import Delete from '@/components/icons/Delete.vue'
 import IconButton from '@/components/common/IconButton.vue'
-import type { PropType } from 'vue'
 
 const props = defineProps({
-  value: {
-    type: Array as PropType<Array<string>>,
-    default: () => []
-  }
+    value: Array,
 })
+const emit = defineEmits(['update:value', 'append'])
 
-const emit = defineEmits<{
-  (e: 'update:value', value: Array<string>): void
-}>()
-
-const set = ref<Array<string>>([])
-
-const onUpdate = (val: Array<string>) => {
-  console.log("console value", val)
-  val = uniq(compact(val))
-  console.log("after console value", val)
-  emit('update:value', val)
+const set = ref([''])
+const onUpdate = (val) => {
+    val = uniq(compact(val))
+    emit('update:value', val)
 }
 
 defineExpose({
-  validate: () => {
-    return !isEmpty(props.value)
-  },
+    validate: () => {
+        return !isEmpty(props.value)
+    },
 })
-
 </script>
 
 <template>
-    <n-form-item :label="$t('element')" required>
-        <n-dynamic-input
-            v-model:value="set"
-            :placeholder="$t('enter_elem')"
-            @update:value="onUpdate">
+    <n-form-item :label="$t('dialogue.field.element')" required>
+        <n-dynamic-input v-model:value="set" :placeholder="$t('dialogue.field.enter_elem')" @update:value="onUpdate">
             <template #action="{ index, create, remove, move }">
                 <icon-button v-if="set.length > 1" :icon="Delete" size="18" @click="() => remove(index)" />
-                <icon-button :icon="Add" size="18" @click="() => create(index)" />
+                <icon-button
+                    :icon="Add"
+                    size="18"
+                    @click="
+                        () => {
+                            create(index)
+                            emit('append')
+                        }
+                    " />
             </template>
         </n-dynamic-input>
     </n-form-item>

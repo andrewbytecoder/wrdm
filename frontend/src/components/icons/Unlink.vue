@@ -1,53 +1,38 @@
-<script setup lang="ts">
-const strokeWidth = defineModel<number | string>('strokeWidth', { default: 3 })
+<script setup>
+const props = defineProps({
+    strokeWidth: {
+        type: [Number, String],
+        default: 3,
+    },
+})
 </script>
 
 <template>
     <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <path
             :stroke-width="strokeWidth"
-            d="M37 22.0001L34 25.0001L23 14.0001L26 11.0001C27.5 9.50002 33 7.00005 37 11.0001C41 15.0001 38.5 20.5 37 22.0001Z"
-            fill="none"
+            d="M25.8927 16.0307L18.1145 8.2525C15.2506 5.38866 10.7031 5.29302 7.9572 8.0389C5.21132 10.7848 5.30696 15.3323 8.1708 18.1962L15.949 25.9744"
             stroke="currentColor"
             stroke-linecap="round"
-            stroke-linejoin="round"
-        />
+            stroke-linejoin="round" />
         <path
             :stroke-width="strokeWidth"
-            d="M42 6L37 11"
+            d="M31.9161 22.0707L39.6943 29.8489C42.5581 32.7127 42.9291 37.1233 39.9079 40.0062C36.8867 42.8891 32.6144 42.6564 29.7506 39.7926L21.9724 32.0144"
             stroke="currentColor"
             stroke-linecap="round"
-            stroke-linejoin="round"
-        />
+            stroke-linejoin="round" />
         <path
             :stroke-width="strokeWidth"
-            d="M11 25.9999L14 22.9999L25 33.9999L22 36.9999C20.5 38.5 15 41 11 36.9999C7 32.9999 9.5 27.5 11 25.9999Z"
-            fill="none"
+            d="M21.2384 21.0759L17.3493 17.1868"
             stroke="currentColor"
             stroke-linecap="round"
-            stroke-linejoin="round"
-        />
+            stroke-linejoin="round" />
         <path
             :stroke-width="strokeWidth"
-            d="M23 32L27 28"
+            d="M30.3131 30.1504L26.424 26.2613"
             stroke="currentColor"
             stroke-linecap="round"
-            stroke-linejoin="round"
-        />
-        <path
-            :stroke-width="strokeWidth"
-            d="M6 42L11 37"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-        />
-        <path
-            :stroke-width="strokeWidth"
-            d="M16 25L20 21"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-        />
+            stroke-linejoin="round" />
     </svg>
 </template>
 

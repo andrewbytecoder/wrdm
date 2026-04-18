@@ -1,93 +1,83 @@
-import { defineStore } from 'pinia'
-import { lang } from '@/langs'
-import { camelCase, clone, find, isEmpty, isObject, map, set, snakeCase, split } from 'lodash'
+﻿import { defineStore } from 'pinia'
+import { lang } from '@/langs/index'
+import { cloneDeep, findIndex, get, isEmpty, join, map, pick, set, some, split } from 'lodash'
 import {
+    CheckForUpdate,
+    GetBuildInDecoder,
     GetFontList,
     GetPreferences,
     RestorePreferences,
     SetPreferences,
-} from '@wails/go/services/preferencesService'
-import { useI18n } from 'vue-i18n'
+} from 'wailsjs/go/services/preferencesService.js'
+import { BrowserOpenURL } from 'wailsjs/runtime/runtime.js'
+import { i18nGlobal } from '@/utils/i18n'
+import { enUS, NButton, NSpace, useOsTheme, zhCN } from 'naive-ui'
+import { h, nextTick } from 'vue'
+import { compareVersion } from '@/utils/version'
+import { typesIconStyle } from '@/consts/support_redis_type'
+import { TextAlignType } from '@/consts/text_align_type'
 
-
-// 定义状态类型
-interface GeneralPreferences {
-    theme: string
-    language: string
-    font: string
-    fontSize: number
-    useSysProxy: boolean
-    useSysProxyHttp: boolean
-    checkUpdate: boolean
-    asideWidth: number
-}
-
-interface EditorPreferences {
-    font: string
-    fontSize: number
-}
-
-interface FontItem {
-    name: string
-    path: string
-}
-
-interface FontOptions {
-    value: string
-    label: string
-    path: string
-}
-
-interface PreferencesState {
-    general: GeneralPreferences
-    editor: EditorPreferences
-    lastPref: Record<string, any>,
-    fontList: FontItem[],
-}
-
-// 定义语言选项类型
-interface LanguageOption {
-    label: string
-    value: string
-}
-
-// 定义GetPreferences返回的数据类型
-interface PreferencesResponse {
-    success: boolean
-    data?: Record<string, any>
-    msg?: string
-}
-
-// 定义RestoreDefault返回的数据类型
-interface RestoreResponse {
-    success: boolean
-    data?: {
-        pref: Record<string, any>
-    }
-    msg?: string
-}
-
+const osTheme = useOsTheme()
 const usePreferencesStore = defineStore('preferences', {
-    state: (): PreferencesState => ({
+    /**
+     * @typedef {Object} FontItem
+     * @property {string} name
+     * @property {string} path
+     */
+    /**
+     * @typedef {Object} Preferences
+     * @property {Object} general
+     * @property {Object} editor
+     * @property {FontItem[]} fontList
+     */
+    /**
+     *
+     * @returns {Preferences}
+     */
+    state: () => ({
+        behavior: {
+            welcomed: false,
+            asideWidth: 300,
+            windowWidth: 0,
+            windowHeight: 0,
+            windowMaximised: false,
+        },
         general: {
-            theme: 'light',
-            language: 'en',
+            theme: 'auto',
+            language: 'auto',
             font: '',
+            fontFamily: [],
             fontSize: 14,
+            scanSize: 3000,
+            keyIconStyle: 0,
             useSysProxy: false,
             useSysProxyHttp: false,
-            checkUpdate: false,
-            asideWidth: 300,
+            checkUpdate: true,
+            skipVersion: '',
+            allowTrack: true,
         },
         editor: {
             font: '',
+            fontFamily: [],
             fontSize: 14,
+            showLineNum: true,
+            showFolding: true,
+            dropText: true,
+            links: true,
+            entryTextAlign: TextAlignType.Center,
         },
+        cli: {
+            fontFamily: [],
+            fontSize: 14,
+            cursorStyle: 'block',
+        },
+        buildInDecoder: [],
+        decoder: [],
         lastPref: {},
         fontList: [],
     }),
     getters: {
-        getSeparator(): string {
+        getSeparator() {
             return ':'
         },
 
@@ -95,15 +85,15 @@ const usePreferencesStore = defineStore('preferences', {
             return [
                 {
                     value: 'light',
-                    label: 'Light',
+                    label: 'preferences.general.theme_light',
                 },
                 {
                     value: 'dark',
-                    label: 'Dark',
+                    label: 'preferences.general.theme_dark',
                 },
                 {
                     value: 'auto',
-                    label: 'Auto',
+                    label: 'preferences.general.theme_auto',
                 },
             ]
         },
@@ -112,56 +102,187 @@ const usePreferencesStore = defineStore('preferences', {
          * all available language
          * @returns {{label: string, value: string}[]}
          */
-        langOption(): LanguageOption[] {
-            return Object.entries(lang).map(([key, value]) => ({
+        langOption() {
+            const options = Object.entries(lang).map(([key, value]) => ({
                 value: key,
-                label: `${value['lang_name']}`,
+                label: value['name'],
             }))
+            options.splice(0, 0, {
+                value: 'auto',
+                label: 'preferences.general.system_lang',
+            })
+            return options
         },
 
         /**
          * all system font list
          * @returns {{path: string, label: string, value: string}[]}
          */
-        fontOption(): FontOptions[] {
-            const option = map(this.fontList, (font: FontItem):FontOptions => ({
+        fontOption() {
+            return map(this.fontList, (font) => ({
                 value: font.name,
                 label: font.name,
                 path: font.path,
             }))
-            option.splice(0, 0, {
-                value: '',
-                label: 'None',
-                path: '',
-            })
-            return option
         },
 
         /**
          * current font selection
-         * @returns {{fontSize: string}}
+         * @returns {{fontSize: string, fontFamily?: string}}
          */
-        generalFont(): Record<string, string> {
-            const fontStyle: Record<string, string> = {
+        generalFont() {
+            const fontStyle = {
                 fontSize: this.general.fontSize + 'px',
             }
-            if (!isEmpty(this.general.font) && this.general.font !== 'none') {
-                const font = find(this.fontList, { name: this.general.font })
-                if (font != null) {
-                    fontStyle['fontFamily'] = `${font.name}`
-                }
+            if (!isEmpty(this.general.fontFamily)) {
+                fontStyle['fontFamily'] = join(
+                    map(this.general.fontFamily, (f) => `"${f}"`),
+                    ',',
+                )
+            }
+            // compatible with old preferences
+            // if (isEmpty(fontStyle['fontFamily'])) {
+            //     if (!isEmpty(this.general.font) && this.general.font !== 'none') {
+            //         const font = find(this.fontList, { name: this.general.font })
+            //         if (font != null) {
+            //             fontStyle['fontFamily'] = `${font.name}`
+            //         }
+            //     }
+            // }
+            return fontStyle
+        },
+
+        /**
+         * current editor font
+         * @return {{fontSize: string, fontFamily?: string}}
+         */
+        editorFont() {
+            const fontStyle = {
+                fontSize: (this.editor.fontSize || 14) + 'px',
+            }
+            if (!isEmpty(this.editor.fontFamily)) {
+                fontStyle['fontFamily'] = join(
+                    map(this.editor.fontFamily, (f) => `"${f}"`),
+                    ',',
+                )
+            }
+            // compatible with old preferences
+            // if (isEmpty(fontStyle['fontFamily'])) {
+            //     if (!isEmpty(this.editor.font) && this.editor.font !== 'none') {
+            //         const font = find(this.fontList, { name: this.editor.font })
+            //         if (font != null) {
+            //             fontStyle['fontFamily'] = `${font.name}`
+            //         }
+            //     }
+            // }
+            if (isEmpty(fontStyle['fontFamily'])) {
+                fontStyle['fontFamily'] = ['monaco']
             }
             return fontStyle
-        }
+        },
 
+        /**
+         * current cli font
+         * @return {{fontSize: string, fontFamily?: string}}
+         */
+        cliFont() {
+            const fontStyle = {
+                fontSize: this.cli.fontSize || 14,
+            }
+            if (!isEmpty(this.cli.fontFamily)) {
+                fontStyle['fontFamily'] = join(
+                    map(this.cli.fontFamily, (f) => `"${f}"`),
+                    ',',
+                )
+            }
+            if (isEmpty(fontStyle['fontFamily'])) {
+                fontStyle['fontFamily'] = ['Courier New']
+            }
+            return fontStyle
+        },
+
+        cliCursorStyleOption() {
+            return [
+                {
+                    value: 'block',
+                    label: 'preferences.cli.cursor_style_block',
+                },
+                {
+                    value: 'underline',
+                    label: 'preferences.cli.cursor_style_underline',
+                },
+                {
+                    value: 'bar',
+                    label: 'preferences.cli.cursor_style_bar',
+                },
+            ]
+        },
+
+        /**
+         * get current language setting
+         * @return {string}
+         */
+        currentLanguage() {
+            let lang = get(this.general, 'language', 'auto')
+            if (lang === 'auto') {
+                const nav = navigator as Navigator & { userLanguage?: string }
+                const systemLang = nav.language || nav.userLanguage
+                lang = split(systemLang, '-')[0]
+            }
+            return lang || 'en'
+        },
+
+        isDark() {
+            const th = get(this.general, 'theme', 'auto')
+            if (th !== 'auto') {
+                return th === 'dark'
+            } else {
+                return osTheme.value === 'dark'
+            }
+        },
+
+        themeLocale() {
+            const lang = this.currentLanguage
+            switch (lang) {
+                case 'zh':
+                    return zhCN
+                default:
+                    return enUS
+            }
+        },
+
+        autoCheckUpdate() {
+            return get(this.general, 'checkUpdate', false)
+        },
+
+        showLineNum() {
+            return get(this.editor, 'showLineNum', true)
+        },
+
+        showFolding() {
+            return get(this.editor, 'showFolding', true)
+        },
+
+        dropText() {
+            return get(this.editor, 'dropText', true)
+        },
+
+        editorLinks() {
+            return get(this.editor, 'links', true)
+        },
+
+        keyIconType() {
+            return get(this.general, 'keyIconStyle', typesIconStyle.SHORT)
+        },
+
+        entryTextAlign() {
+            return get(this.editor, 'entryTextAlign', TextAlignType.Center)
+        },
     },
-
-
     actions: {
-        _applyPreferences(data: Record<string, any>): void {
+        _applyPreferences(data) {
             for (const key in data) {
-                const keys = map(split(key, '.'), camelCase)
-                set(this, keys, data[key])
+                set(this, key, data[key])
             }
         },
 
@@ -169,11 +290,29 @@ const usePreferencesStore = defineStore('preferences', {
          * load preferences from local
          * @returns {Promise<void>}
          */
-        async loadPreferences(): Promise<void> {
-            const resp: PreferencesResponse = await GetPreferences()
-            if (resp.success && resp.data) {
-                this.lastPref = clone(resp.data)
-                this._applyPreferences(resp.data)
+        async loadPreferences() {
+            const { success, data } = await GetPreferences()
+            if (success) {
+                this.lastPref = cloneDeep(data)
+                this._applyPreferences(data)
+                // default value
+                const showLineNum = get(data, 'editor.showLineNum')
+                if (showLineNum === undefined) {
+                    set(data, 'editor.showLineNum', true)
+                }
+                const showFolding = get(data, 'editor.showFolding')
+                if (showFolding === undefined) {
+                    set(data, 'editor.showFolding', true)
+                }
+                const dropText = get(data, 'editor.dropText')
+                if (dropText === undefined) {
+                    set(data, 'editor.dropText', true)
+                }
+                const links = get(data, 'editor.links')
+                if (links === undefined) {
+                    set(data, 'editor.links', true)
+                }
+                i18nGlobal.locale.value = this.currentLanguage
             }
         },
 
@@ -181,7 +320,7 @@ const usePreferencesStore = defineStore('preferences', {
          * load system font list
          * @returns {Promise<string[]>}
          */
-        async loadFontList(): Promise<FontOptions[]> {
+        async loadFontList() {
             const { success, data } = await GetFontList()
             if (success) {
                 const { fonts = [] } = data
@@ -189,69 +328,38 @@ const usePreferencesStore = defineStore('preferences', {
             } else {
                 this.fontList = []
             }
-            
-            // 确保当前选择的字体在字体列表中存在，如果不存在则重置为默认值
-            if (this.fontList.length > 0) {
-                const generalFontExists = this.fontList.some(font => font.name === this.general.font);
-                if (!generalFontExists && this.general.font !== '') {
-                    this.general.font = '';
-                }
-                
-                const editorFontExists = this.fontList.some(font => font.name === this.editor.font);
-                if (!editorFontExists && this.editor.font !== '') {
-                    this.editor.font = '';
-                }
+            return this.fontList
+        },
+
+        /**
+         * get all available build-in decoder
+         * @return {Promise<void>}
+         */
+        async loadBuildInDecoder() {
+            const { success, data } = await GetBuildInDecoder()
+            if (success) {
+                const { decoder = [] } = data
+                this.buildInDecoder = decoder
+            } else {
+                this.buildInDecoder = []
             }
-            
-            // 返回字体选项而不是字体列表
-            const option = map(this.fontList, (font: FontItem):FontOptions => ({
-                value: font.name,
-                label: font.name,
-                path: font.path,
-            }))
-            
-            option.splice(0, 0, {
-                value: '',
-                label: 'None', // 默认值，稍后会在组件中进行国际化处理
-                path: '',
-            })
-            
-            return option
         },
 
         /**
          * save preferences to local
          * @returns {Promise<boolean>}
          */
-        async savePreferences(): Promise<boolean> {
-            const obj2Map = (prefix: string, obj: Record<string, any>): Record<string, any> => {
-                const result: Record<string, any> = {}
-                for (const key in obj) {
-                    if (isObject(obj[key])) {
-                        const subResult = obj2Map(`${prefix}.${snakeCase(key)}`, obj[key])
-                        Object.assign(result, subResult)
-                    } else {
-                        result[`${prefix}.${snakeCase(key)}`] = obj[key]
-                    }
-                }
-                return result
-            }
-
-            const pf = Object.assign(
-                {},
-                obj2Map('general', this.general),
-                obj2Map('editor', this.editor)
-            )
-
-            await SetPreferences(pf)
-            return true
+        async savePreferences() {
+            const pf = pick(this, ['behavior', 'general', 'editor', 'cli', 'decoder'])
+            const { success, msg } = await SetPreferences(pf)
+            return success === true
         },
 
         /**
-         * reset to last loaded preferences
+         * reset to last-loaded preferences
          * @returns {Promise<void>}
          */
-        async resetToLastPreferences(): Promise<void> {
+        async resetToLastPreferences() {
             if (!isEmpty(this.lastPref)) {
                 this._applyPreferences(this.lastPref)
             }
@@ -261,60 +369,186 @@ const usePreferencesStore = defineStore('preferences', {
          * restore preferences to default
          * @returns {Promise<boolean>}
          */
-        async restorePreferences(): Promise<boolean> {
-            const resp: RestoreResponse = await RestorePreferences()
-            if (resp.success && resp.data) {
-                const { pref } = resp.data
+        async restorePreferences() {
+            const { success, data } = await RestorePreferences()
+            if (success === true) {
+                const { pref } = data
                 this._applyPreferences(pref)
                 return true
             }
             return false
         },
 
-        setAsideWidth(width: number): void {
-            this.general.asideWidth = width
-        },
-        
         /**
-         * 获取带国际化的主题选项
-         * @returns {*[]}
+         * add a new custom decoder
+         * @param {string} name
+         * @param {boolean} enable
+         * @param {boolean} auto
+         * @param {string} encodePath
+         * @param {string[]} encodeArgs
+         * @param {string} decodePath
+         * @param {string[]} decodeArgs
          */
-        getThemedOptions() {
-            const i18n = useI18n()
-            return [
-                {
-                    value: 'light',
-                    label: i18n.t('theme_light'),
-                },
-                {
-                    value: 'dark',
-                    label: i18n.t('theme_dark'),
-                },
-                {
-                    value: 'auto',
-                    label: i18n.t('theme_auto'),
-                },
-            ]
+        addCustomDecoder({ name, enable = true, auto = true, encodePath, encodeArgs, decodePath, decodeArgs }) {
+            if (some(this.decoder, { name })) {
+                return false
+            }
+            this.decoder = this.decoder || []
+            this.decoder.push({ name, enable, auto, encodePath, encodeArgs, decodePath, decodeArgs })
+            return true
         },
-        
+
         /**
-         * 获取带国际化的字体选项
-         * @returns {*[]}
+         * update an existing custom decoder
+         * @param {string} newName
+         * @param {boolean} enable
+         * @param {boolean} auto
+         * @param {string} name
+         * @param {string} encodePath
+         * @param {string[]} encodeArgs
+         * @param {string} decodePath
+         * @param {string[]} decodeArgs
          */
-        getFontOptionsWithI18n(): FontOptions[] {
-            const i18n = useI18n()
-            const option = map(this.fontList, (font: FontItem):FontOptions => ({
-                value: font.name,
-                label: font.name,
-                path: font.path,
-            }))
-            option.splice(0, 0, {
-                value: '',
-                label: i18n.t('none'),
-                path: '',
-            })
-            return option
-        }
+        updateCustomDecoder({
+            newName,
+            enable = true,
+            auto = true,
+            name,
+            encodePath,
+            encodeArgs,
+            decodePath,
+            decodeArgs,
+        }) {
+            const idx = findIndex(this.decoder, { name })
+            if (idx === -1) {
+                return false
+            }
+            // conflicted
+            if (newName !== name && some(this.decoder, { name: newName })) {
+                return false
+            }
+
+            let selDecoder = this.decoder[idx]
+            selDecoder.name = newName || name
+            selDecoder.enable = enable
+            selDecoder.auto = auto
+            selDecoder.encodePath = encodePath
+            selDecoder.encodeArgs = encodeArgs
+            selDecoder.decodePath = decodePath
+            selDecoder.decodeArgs = decodeArgs
+            this.decoder[idx] = selDecoder
+            return true
+        },
+
+        /**
+         * remove an existing custom decoder
+         * @param {string} name
+         * @return {boolean}
+         */
+        removeCustomDecoder(name) {
+            const idx = findIndex(this.decoder, { name })
+            if (idx === -1) {
+                return false
+            }
+            this.decoder.splice(idx, 1)
+            return true
+        },
+
+        setAsWelcomed(acceptTrack) {
+            this.behavior.welcomed = true
+            this.general.allowTrack = acceptTrack
+            this.savePreferences()
+        },
+
+        async checkForUpdate(manual = false) {
+            let msgRef = null
+            if (manual) {
+                msgRef = $message.loading(i18nGlobal.t('interface.retrieving_version'), { duration: 0 })
+            }
+            try {
+                const { success, data = {} } = await CheckForUpdate()
+                if (success) {
+                    const {
+                        version = 'v1.0.0',
+                        latest,
+                        download_page: pageUrl = {},
+                        description = {},
+                        sponsor = [],
+                        banner = [],
+                    } = data
+                    const downUrl = pageUrl[this.currentLanguage] || pageUrl['en']
+                    const descStr = description[this.currentLanguage] || description['en']
+                    // save sponsor ad
+                    if (!isEmpty(sponsor)) {
+                        localStorage.setItem('sponsor_ad', JSON.stringify(sponsor))
+                    }
+                    if (!isEmpty(banner)) {
+                        localStorage.setItem('banner', JSON.stringify(banner))
+                    }
+                    if (
+                        (manual || compareVersion(latest, this.general.skipVersion) !== 0) &&
+                        compareVersion(latest, version) > 0 &&
+                        !isEmpty(downUrl)
+                    ) {
+                        const notiRef = $notification.show({
+                            title: `${i18nGlobal.t('dialogue.upgrade.title')} - ${latest}`,
+                            content: descStr || i18nGlobal.t('dialogue.upgrade.new_version_tip', { ver: latest }),
+                            action: () =>
+                                h('div', { class: 'flex-box-h flex-item-expand' }, [
+                                    h(NSpace, { wrapItem: false }, () => [
+                                        h(
+                                            NButton,
+                                            {
+                                                size: 'small',
+                                                secondary: true,
+                                                onClick: () => {
+                                                    // skip this update
+                                                    this.general.skipVersion = latest
+                                                    this.savePreferences()
+                                                    notiRef.destroy()
+                                                },
+                                            },
+                                            () => i18nGlobal.t('dialogue.upgrade.skip'),
+                                        ),
+                                        h(
+                                            NButton,
+                                            {
+                                                size: 'small',
+                                                secondary: true,
+                                                onClick: notiRef.destroy,
+                                            },
+                                            () => i18nGlobal.t('dialogue.upgrade.later'),
+                                        ),
+                                        h(
+                                            NButton,
+                                            {
+                                                type: 'primary',
+                                                size: 'small',
+                                                secondary: true,
+                                                onClick: () => BrowserOpenURL(downUrl),
+                                            },
+                                            () => i18nGlobal.t('dialogue.upgrade.download_now'),
+                                        ),
+                                    ]),
+                                ]),
+                            onPositiveClick: () => BrowserOpenURL(downUrl),
+                        })
+                        return
+                    }
+                }
+
+                if (manual) {
+                    $message.info(i18nGlobal.t('dialogue.upgrade.no_update'))
+                }
+            } finally {
+                nextTick().then(() => {
+                    if (msgRef != null) {
+                        msgRef.destroy()
+                        msgRef = null
+                    }
+                })
+            }
+        },
     },
 })
 

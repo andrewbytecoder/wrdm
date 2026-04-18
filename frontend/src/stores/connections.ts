@@ -1,265 +1,122 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
+import { get, isEmpty, isObject, uniq } from 'lodash'
 import {
-    endsWith,
-    get,
-    isEmpty,
-    join,
-    remove,
-    size,
-    slice,
-    sortedIndexBy,
-    sortedUniq,
-    split,
-    sumBy,
-    toUpper,
-    uniq
-} from 'lodash'
-import {
-    AddHashField,
-    AddListItem,
-    AddZSetValue,
-    CloseConnection,
     CreateGroup,
     DeleteConnection,
     DeleteGroup,
-    DeleteKey,
-    GetCmdHistory,
+    ExportConnections,
     GetConnection,
-    GetKeyValue,
+    ImportConnections,
     ListConnection,
-    OpenConnection,
-    OpenDatabase,
-    RenameKey,
+    ParseConnectURL,
     RenameGroup,
     SaveConnection,
+    SaveLastDB,
+    SaveRefreshInterval,
     SaveSortedConnection,
-    ScanKeys,
-    ServerInfo,
-    SetHashValue,
-    SetKeyTTL,
-    SetKeyValue,
-    SetListItem,
-    SetSetItem,
-    UpdateSetItem,
-    UpdateZSetValue,
-} from '@wails/go/services/connectionService.js'
+} from 'wailsjs/go/services/connectionService.js'
 import { ConnectionType } from '@/consts/connection_type'
-import useTabStore from '@/stores/tab'
-import { types } from '@wails/go/models'
-import { ConnectionItem } from '@/config/dbs'
-import key from "@/components/icons/Key.vue";
-import { types as colorList, validType } from '@/consts/support_redis_type'
-
-// 数据库 每个redis 默认 16个数据库
-export interface DatabaseItem {
-    key: string
-    label: string
-    name?: string
-    type: number
-    db?: number
-    keys: number
-    opened?: boolean
-    expanded?: boolean
-    children?: DatabaseItem[]
-    redisKey?: string
-    isLeaf?: boolean
-}
-
-interface ConnectionGroup extends ConnectionItem{
-    Type: string
-}
-
-interface ListConnectionResponse {
-    data?: ConnectionGroup[]
-}
-
-
-interface KeyItem {
-    Type: string
-}
-
-interface OpenDatabaseResponse extends Record<string, KeyItem> {}
-
-interface ScanKeysItem {
-    keys: string[]
-}
-
-interface SetHashValueResponse {
-    data?: {
-        updated?: Record<string, any>
-        removed?: string[]
-    }
-    success: boolean
-    msg: string
-}
-
-interface AddHashFieldResponse {
-    data?: {
-        updated?: Record<string, any>
-    }
-    success: boolean
-    msg: string
-}
-
-interface AddListItemResponse {
-    data?: {
-        left?: any[]
-        right?: any[]
-    }
-    success: boolean
-    msg: string
-}
-
-interface SetListItemResponse {
-    data?: {
-        updated?: Record<string, any>
-        removed?: string[]
-    }
-    success: boolean
-    msg: string
-}
-
-interface UpdateZSetValueResponse {
-    data?: {
-        updated?: Record<string, any>
-        removed?: string[]
-    }
-    success: boolean
-    msg: string
-}
-
-/**
- * @typedef {Object} ConnectionProfile
- * @property {string} defaultFilter
- * @property {string} keySeparator
- * @property {string} markColor
- */
-export interface ConnectionProfile {
-    defaultFilter: string,
-    keySeparator: string,
-    markColor: string
-
-}
-
-interface ConnectionState {
-    groups: string[], // all group name
-    connections: ConnectionItem[]
-    serverStats: Record<string, string>,
-    serverProfile: Record<string, ConnectionProfile>,
-    keyFilter: Record<string, string>,
-    typeFilter: Record<string, string>, // all key type filters in opened connections group by server+db
-    databases: Record<string, DatabaseItem[]>
-    nodeMap: Record<string, any>, // all node in opened connections group by server+db and key+type
-}
-
-
-interface SelectParams {
-    key: string
-    name: string
-    db: number
-    type: number
-    redisKey: string
-}
-
-export interface HistoryItem {
-    timestamp: number
-    time: string
-    server: string
-    cmd: string
-    cost: number
-}
-
+import { KeyViewType } from '@/consts/key_view_type'
+import useBrowserStore from 'stores/browser'
+import { i18nGlobal } from '@/utils/i18n'
+import { ClipboardGetText } from 'wailsjs/runtime/runtime.js'
 
 const useConnectionStore = defineStore('connections', {
     /**
-     *
-     * @returns {{groups: string[], databases: Object<string, DatabaseItem[]>, connections: ConnectionItem[]}}
+     * @typedef {Object} ConnectionItem
+     * @property {string} key
+     * @property {string} label display label
+     * @property {string} name database name
+     * @property {number} type
+     * @property {boolean} cluster is cluster node
+     * @property {ConnectionItem[]} children
      */
 
+    /**
+     * @typedef {Object} ConnectionProfile
+     * @property {string} defaultFilter
+     * @property {string} keySeparator
+     * @property {string} markColor
+     * @property {number} refreshInterval
+     */
 
     /**
      * @typedef {Object} ConnectionState
      * @property {string[]} groups
      * @property {ConnectionItem[]} connections
-     * @property {Object} serverStats
      * @property {Object.<string, ConnectionProfile>} serverProfile
-     * @property {Object.<string, string>} keyFilter key is 'server#db', 'server#-1' stores default filter pattern
-     * @property {Object.<string, DatabaseItem[]>} databases
-     * @property {Object.<string, Map<string, DatabaseItem>>} nodeMap key format likes 'server#db', children key format likes 'key#type'
      */
-    state: (): ConnectionState => ({
+
+    /**
+     *
+     * @returns {ConnectionState}
+     */
+    state: () => ({
         groups: [], // all group name set
         connections: [], // all connections
-        serverStats: {}, // current server status info
-        serverProfile: {}, // all server profile
-        keyFilter: {}, // all key filters in opened connections group by server+db
-        typeFilter: {}, // all key type filters in opened connections group by server+db
-        databases: {}, // all databases in opened connections group by server name
-        nodeMap: {}, // all nodes in opened connections group by server#db and type/key
+        serverProfile: {}, // all server profile in flat list
     }),
-    getters: {
-        anyConnectionOpened(): boolean {
-            return !isEmpty(this.databases)
-        },
-    },
+    getters: {},
     actions: {
         /**
-         * * load all store connections struct from local profile
-         *          * @param {boolean} [force]
-         *          * @returns {Promise<void>}
-         *          */
-        async initConnections(force: boolean): Promise<void> {
+         * load all store connections struct from local profile
+         * @param {boolean} [force]
+         * @returns {Promise<void>}
+         */
+        async initConnections(force) {
             if (!force && !isEmpty(this.connections)) {
                 return
             }
-            const conns: ConnectionItem[] = []
-            const groups: string[] = []
-            const profiles: Record<string, ConnectionProfile> = {}
-            const  data = await ListConnection()
+            const conns = []
+            const groups = []
+            const profiles = {}
+            const { data = [{ groupName: '', connections: [], refreshInterval: 5 }] } = await ListConnection()
             for (const conn of data) {
-                // Top level group
                 if (conn.type !== 'group') {
+                    // top level
                     conns.push({
-                        name: conn.name,
-                        key: conn.name, group: "",
+                        key: '/' + conn.name,
                         label: conn.name,
-                        type: ConnectionType.Server
+                        name: conn.name,
+                        type: ConnectionType.Server,
+                        cluster: get(conn, 'cluster.enable', false),
+                        // isLeaf: false,
                     })
                     profiles[conn.name] = {
-                        defaultFilter: conn.defaultFilter || '',
-                        keySeparator: conn.keySeparator || '',
-                        markColor: conn.markColor || '',
+                        defaultFilter: conn.defaultFilter,
+                        keySeparator: conn.keySeparator,
+                        markColor: conn.markColor,
+                        refreshInterval: conn.refreshInterval,
                     }
                 } else {
+                    // custom group
                     groups.push(conn.name)
-                    // Custom group
-                    const children: ConnectionItem[] = []
-                    for (const item of conn.connections!) {
-                        const value:string = conn.name + '/' + item.name
-
+                    const subConns = get(conn, 'connections', [])
+                    const children = []
+                    for (const item of subConns) {
+                        const value = conn.name + '/' + item.name
                         children.push({
-                            group: "",
-                            name: item.name,
                             key: value,
                             label: item.name,
-                            type: ConnectionType.Server
+                            name: item.name,
+                            type: ConnectionType.Server,
+                            cluster: get(item, 'cluster.enable', false),
+                            // isLeaf: false,
                         })
+                        profiles[item.name] = {
+                            defaultFilter: item.defaultFilter,
+                            keySeparator: item.keySeparator,
+                            markColor: item.markColor,
+                            refreshInterval: item.refreshInterval,
+                        }
                     }
                     conns.push({
-                        group: "",
-                        name: "",
-                        key: conn.name,
+                        key: conn.name + '/',
                         label: conn.name,
                         type: ConnectionType.Group,
-                        connections: children
+                        children,
                     })
-                    profiles[conn.name] = {
-                        defaultFilter: conn.defaultFilter || '',
-                        keySeparator: conn.keySeparator || '',
-                        markColor: conn.markColor || '',
-                    }
                 }
-                this.setKeyFilter(conn.name, -1, conn.defaultFilter as string, '')
             }
             this.connections = conns
             this.serverProfile = profiles
@@ -271,32 +128,33 @@ const useConnectionStore = defineStore('connections', {
          * @param name
          * @returns {Promise<ConnectionProfile|null>}
          */
-        async getConnectionProfile(name:string):Promise<ConnectionItem> {
+        async getConnectionProfile(name) {
             try {
-                const conns = await GetConnection(name)
-                if (conns != null) {
-                    this.serverProfile[conns.name] = {
-                        defaultFilter: conns.defaultFilter || '',
-                        keySeparator: conns.keySeparator || '',
-                        markColor: conns.markColor || '',
+                const { data, success } = await GetConnection(name)
+                if (success) {
+                    this.serverProfile[name] = {
+                        defaultFilter: data.defaultFilter,
+                        keySeparator: data.keySeparator,
+                        markColor: data.markColor,
                     }
-                    return {name: conns.name, key: "", label: "", group: conns.group || "", addr: conns.addr, port: conns.port, username: conns.username, password: conns.password, defaultFilter: conns.defaultFilter, keySeparator: conns.keySeparator, connTimeout: conns.connTimeout, execTimeout: conns.execTimeout, markColor: conns.markColor}
+                    return data
                 }
             } finally {
             }
-            return  this.newDefaultConnection(name)
+            return null
         },
 
         /**
          * create a new default connection
          * @param {string} [name]
-         * @returns {{types.Connection}}
+         * @returns {{}}
          */
-        newDefaultConnection(name:string):ConnectionItem {
+        newDefaultConnection(name) {
             return {
-                key: "", label: "",
                 group: '',
-                name: name,
+                name: name || '',
+                network: 'tcp',
+                sock: '/tmp/redis.sock',
                 addr: '127.0.0.1',
                 port: 6379,
                 username: '',
@@ -305,29 +163,84 @@ const useConnectionStore = defineStore('connections', {
                 keySeparator: ':',
                 connTimeout: 60,
                 execTimeout: 60,
-                markColor: ''
+                dbFilterType: 'none',
+                dbFilterList: [],
+                keyView: KeyViewType.Tree,
+                loadSize: 10000,
+                markColor: '',
+                alias: {},
+                ssl: {
+                    enable: false,
+                    allowInsecure: true,
+                    sni: '',
+                    certFile: '',
+                    keyFile: '',
+                    caFile: '',
+                },
+                ssh: {
+                    enable: false,
+                    addr: '',
+                    port: 22,
+                    loginType: 'pwd',
+                    username: '',
+                    password: '',
+                    pkFile: '',
+                    passphrase: '',
+                },
+                sentinel: {
+                    enable: false,
+                    master: 'mymaster',
+                    username: '',
+                    password: '',
+                },
+                cluster: {
+                    enable: false,
+                },
+                proxy: {
+                    type: 0,
+                    schema: 'http',
+                    addr: '',
+                    port: 0,
+                    auth: false,
+                    username: '',
+                    password: '',
+                },
             }
         },
+
+        mergeConnectionProfile(dest, src) {
+            const mergeObj = (destObj, srcObj) => {
+                for (const k in srcObj) {
+                    const t = typeof srcObj[k]
+                    if (t === 'string') {
+                        destObj[k] = srcObj[k] || destObj[k] || ''
+                    } else if (t === 'number') {
+                        destObj[k] = srcObj[k] || destObj[k] || 0
+                    } else if (t === 'object') {
+                        mergeObj(destObj[k], srcObj[k] || {})
+                    } else {
+                        destObj[k] = srcObj[k]
+                    }
+                }
+                return destObj
+            }
+            return mergeObj(dest, src)
+        },
+
         /**
          * get database server by name
          * @param name
          * @returns {ConnectionItem|null}
          */
-        getConnection(name: string): ConnectionItem | null {
+        getConnection(name) {
             const conns = this.connections
             for (let i = 0; i < conns.length; i++) {
-                if (
-                    conns[i].type === ConnectionType.Server &&
-                    (conns[i].key === name || conns[i].name === name)
-                ) {
+                if (conns[i].type === ConnectionType.Server && conns[i].key === name) {
                     return conns[i]
                 } else if (conns[i].type === ConnectionType.Group) {
-                    const children = conns[i].connections || []
+                    const children = conns[i].children
                     for (let j = 0; j < children.length; j++) {
-                        if (
-                            children[j].type === ConnectionType.Server &&
-                            (children[j].key === name || children[j].name === name)
-                        ) {
+                        if (children[j].type === ConnectionType.Server && conns[i].key === name) {
                             return children[j]
                         }
                     }
@@ -337,1158 +250,227 @@ const useConnectionStore = defineStore('connections', {
         },
 
         /**
-         * Create a new connection or update current connection profile
+         * create a new connection or update current connection profile
          * @param {string} name set null if create a new connection
-         * @param {types.Connection} param
+         * @param {{}} param
          * @returns {Promise<{success: boolean, [msg]: string}>}
          */
-        async saveConnection(name:string, param:ConnectionItem):Promise<types.JSResp> {
-            const { success, msg } = await SaveConnection(name, types.Connection.createFrom(param))
+        async saveConnection(name, param) {
+            const { success, msg } = await SaveConnection(name, param)
             if (!success) {
-                console.error(msg)
                 return { success: false, msg }
             }
 
             // reload connection list
             await this.initConnections(true)
-            return {data: undefined, msg: "save connection success", success: true }
+            return { success: true }
         },
 
         /**
          * save connection after sort
          * @returns {Promise<void>}
          */
-        async saveConnectionSorted(): Promise<void> {
-            const mapToList = (conns: ConnectionItem[]):types.Connection[] => {
-                const list: types.Connection[] = []
+        async saveConnectionSorted() {
+            const mapToList = (conns) => {
+                const list = []
                 for (const conn of conns) {
                     if (conn.type === ConnectionType.Group) {
-                        const children = mapToList(conn.connections!)
+                        const children = mapToList(conn.children)
                         list.push({
-                            group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
-                            },
                             name: conn.label,
                             type: 'group',
-                            connections: children
+                            connections: children,
                         })
                     } else if (conn.type === ConnectionType.Server) {
                         list.push({
-                            group: "", convertValues(a: any, classs: any, asMap?: boolean): any {
-                            },
-                            name: conn.name
+                            name: conn.name,
                         })
                     }
                 }
                 return list
             }
             const s = mapToList(this.connections)
-            await SaveSortedConnection(s)
-        },
-
-
-        /**
-         * Check if connection is connected
-         * @param name
-         * @returns {boolean}
-         */
-        isConnected(name: string): boolean {
-            const dbs = get(this.databases, name, [])
-            return !isEmpty(dbs)
+            SaveSortedConnection(s)
         },
 
         /**
-         * Open connection
-         * @param {string} name
-         * @param reload
-         * @returns {Promise<void>}
-         */
-        async openConnection(name: string, reload: boolean): Promise<void> {
-            if (this.isConnected(name)) {
-                if (!reload) {
-                    return
-                } else {
-                    // reload mode, try close connection first
-                    await CloseConnection(name)
-                }
-            }
-
-
-            const cdbs = await OpenConnection(name)
-            if (cdbs == null || cdbs.length === 0) {
-                throw new Error('no db loaded')
-            }
-            // append to db node to current connection
-            // const connNode = this.getConnection(name)
-            // if (connNode == null) {
-            //     throw new Error('no such connection')
-            // }
-            //  正常情况下，每个conn 有16个 db
-            const dbs: DatabaseItem[] = []
-            for (let i = 0; i < cdbs.length; i++) {
-                dbs.push({
-                    key: `${name}/${cdbs[i].name}`,
-                    label: cdbs[i].name,
-                    name: name,
-                    keys: cdbs[i].keys,
-                    db: i,
-                    type: ConnectionType.RedisDB,
-                    isLeaf: false,
-                })
-            }
-            this.databases[name] = dbs
-        },
-
-        /**
-         * Close connection
-         * @param {string} name
-         * @returns {Promise<boolean>}  内部是异步调用，，所以返回值是异步的，所有Promise的值都需要使用 await 获取返回值
-         */
-        async closeConnection(name: string): Promise<boolean> {
-            const success = await CloseConnection(name)
-            if (!success) {
-                // throw new Error(msg)
-                return false
-            }
-            const dbs = this.databases[name]
-            for (const db of dbs) {
-                this.removeKeyFilter(name, db.db as number)
-                this.nodeMap[`${name}#${db.db}`]?.clear()
-            }
-            this.removeKeyFilter(name, -1)
-            delete this.databases[name]
-            delete this.serverStats[name]
-            const tabStore = useTabStore()
-            tabStore.removeTabByName(name)
-            return true
-        },
-
-        /**
-         * Close all connections
-         * @returns {Promise<void>}
-         */
-        async closeAllConnection(): Promise<void> {
-            for (const name in this.databases) {
-                await CloseConnection(name)
-            }
-
-            this.databases = {}
-            this.serverStats = {}
-            const tabStore = useTabStore()
-            tabStore.removeAllTab()
-        },
-
-        /**
-         * Remove connection
+         * remove connection
          * @param name
          * @returns {Promise<{success: boolean, [msg]: string}>}
          */
-        async deleteConnection(name: string):Promise<types.JSResp> {
+        async deleteConnection(name) {
             // close connection first
-            await this.closeConnection(name)
+            const browser = useBrowserStore()
+            await browser.closeConnection(name)
             const { success, msg } = await DeleteConnection(name)
             if (!success) {
                 return { success: false, msg }
             }
             await this.initConnections(true)
-            return {data: undefined, msg: "", success: true }
+            return { success: true }
         },
 
         /**
-         * Create connection group
+         * create a connection group
          * @param name
          * @returns {Promise<{success: boolean, [msg]: string}>}
          */
-        async createGroup(name: string): Promise<{success: boolean, msg: string}> {
+        async createGroup(name) {
             const { success, msg } = await CreateGroup(name)
             if (!success) {
                 return { success: false, msg }
             }
             await this.initConnections(true)
-            return { success: true, msg: "" }
+            return { success: true }
         },
 
         /**
-         * Rename connection group
+         * rename connection group
          * @param name
          * @param newName
          * @returns {Promise<{success: boolean, [msg]: string}>}
          */
-        async renameGroup(name: string, newName: string) :Promise<{success: boolean, msg: string}> {
+        async renameGroup(name, newName) {
             if (name === newName) {
-                return { success: true, msg: "" }
+                return { success: true }
             }
             const { success, msg } = await RenameGroup(name, newName)
             if (!success) {
                 return { success: false, msg }
             }
             await this.initConnections(true)
-            return { success: true, msg: "" }
+            return { success: true }
         },
 
         /**
-         * Remove group by name
+         * delete group by name
          * @param {string} name
          * @param {boolean} [includeConn]
          * @returns {Promise<{success: boolean, [msg]: string}>}
          */
-        async deleteGroup(name:string, includeConn:boolean):Promise<{success: boolean, msg: string}> {
-            const { success, msg } = await DeleteGroup(name, includeConn)
+        async deleteGroup(name, includeConn) {
+            const { success, msg } = await DeleteGroup(name, includeConn === true)
             if (!success) {
                 return { success: false, msg }
             }
             await this.initConnections(true)
-            return { success: true, msg: "" }
+            return { success: true }
         },
 
         /**
-         * Open database and load all keys
-         * @param connName
-         * @param db
-         * @returns {Promise<void>}
-         */
-        async openDatabase(connName: string, db: number): Promise<void> {
-            const { match: filterPattern, type: keyType } = this.getKeyFilter(connName, db)
-            const { data, success, msg } = await OpenDatabase(connName, db, filterPattern, keyType)
-            if (!success) {
-                throw new Error(msg)
-            }
-            const keys = (data as ScanKeysItem).keys
-            const dbs = this.databases[connName]
-            dbs[db].opened = true
-            if (isEmpty(keys)) {
-                dbs[db].children = []
-                return
-            }
-
-            // append db node to current connection's children
-            this._addKeyNodes(connName, db, keys, false)
-            // this._tidyNodeChildren(dbs[db])
-            this._tidyNode(connName, db, '', false)
-        },
-        /**
-         * reopen database
-         * @param connName connection name
-         * @param db database index
-         * @returns {Promise<void>}
-         */
-        async reopenDatabase(connName: string, db: number): Promise<void> {
-            const dbs = this.databases[connName]
-            dbs[db].children = undefined
-            dbs[db].isLeaf = false
-            this.nodeMap[`${connName}#${db}`]?.clear()
-        },
-
-        /**
-         * close database
-         * @param connName
-         * @param db
-         */
-        closeDatabase(connName: string, db: number) {
-            const dbs = this.databases[connName]
-            delete dbs[db].children
-            dbs[db].isLeaf = false
-            dbs[db].opened = false
-
-            this.nodeMap[`${connName}#${db}`]?.clear()
-        },
-
-        /**
-         *
-         * @param server
-         * @returns {Promise<{}>}
-         */
-        async getServerInfo(server: string): Promise<Record<string,  string>> {
-            // 获取 server info 信息
-            try {
-                const { success, data } = await ServerInfo(server)
-                if (success) {
-                    this.serverStats[server] = data
-                    return data
-                }
-            } finally {
-            }
-            return {}
-        },
-
-        /**
-         * load redis key
-         * * @param {string} server
-         *          * @param {number} db
-         *          * @param {string} [key] when key is null or blank, update tab to display normal content (blank content or server status)
-         *          */
-        async loadKeyValue(server: string, db: number, key: string): Promise<void> {
-            try {
-                const tab = useTabStore()
-
-                if (!isEmpty(key)) {
-                    const data = await GetKeyValue(server, db, key)
-                    if (data) {
-                        const { type, ttl, value } = data!
-                        tab.upsertTab({
-                            blank: false, name: "",
-                            server,
-                            db,
-                            type,
-                            ttl,
-                            key,
-                            value
-                        })
-                        return
-                    }
-                }
-                //  请求失败插入空数据
-                tab.upsertTab({
-                    blank: false, name: "",
-                    server,
-                    db,
-                    type: 'none',
-                    ttl: -1,
-                    key,
-                    value: null
-                })
-            } finally {
-            }
-        },
-
-        /**
-         * scan keys with prefix
-         * @param {string} connName
+         * save last selected database
+         * @param {string} name
          * @param {number} db
-         * @param {string} [prefix] full reload database if prefix is null
-         * @returns {Promise<{keys: string[]}>}
+         * @return {Promise<{success: boolean, [msg]: string}>}
          */
-        async scanKeys(connName: string, db: number, prefix: string):Promise<{keys: string[], success: boolean}>{
-            const { data, success, msg } = await ScanKeys(connName, db, prefix || '*', '')
+        async saveLastDB(name, db) {
+            const { success, msg } = await SaveLastDB(name, db)
             if (!success) {
-                throw new Error(msg)
+                return { success: false, msg }
             }
-            // data 是一个 Record<"keys", string[]> 类型的数据
-            const keys = (data as ScanKeysItem).keys
-            return { keys, success }
-        },
-        /**
-         * load keys with prefix
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} prefix
-         * @returns {Promise<void>}
-         */
-        async loadKeys(connName:string, db:number, prefix: string) {
-            let scanPrefix = prefix
-            if (isEmpty(scanPrefix)) {
-                scanPrefix = '*'
-            } else {
-                const separator = this._getSeparator(connName)
-                if (!endsWith(prefix, separator + '*')) {
-                    scanPrefix = prefix + separator + '*'
-                }
-            }
-            const { keys, success } = await this.scanKeys(connName, db, scanPrefix)
-            if (!success) {
-                return
-            }
-
-            // remove current keys below prefix
-            this._deleteKeyNode(connName, db, prefix, true)
-            this._addKeyNodes(connName, db, keys, false)
-            this._tidyNode(connName, db, prefix, false)
+            return { success: true }
         },
 
         /**
-         * get custom separator of connection
-         * @param server
-         * @returns {string}
-         * @private
+         * get default key filter pattern by server name
+         * @param name
+         * @return {string}
          */
-        _getSeparator(server: string) {
-            const { keySeparator } = this.serverProfile[server] || { keySeparator: ':' }
-            if (isEmpty(keySeparator)) {
-                return ':'
-            }
+        getDefaultKeyFilter(name) {
+            const { defaultFilter = '*' } = this.serverProfile[name] || {}
+            return defaultFilter
+        },
+
+        /**
+         * get default key separator by server name
+         * @param name
+         * @return {string}
+         */
+        getDefaultSeparator(name) {
+            const { keySeparator = ':' } = this.serverProfile[name] || {}
             return keySeparator
         },
 
         /**
-         * get node map
-         * @param connName
-         * @param db
-         * @returns {Map<string, DatabaseItem>}
-         * @private
+         * get default status refresh interval by server name
+         * @param {string} name
+         * @return {number}
          */
-        _getNodeMap(connName: string, db: number) {
-            if (this.nodeMap[`${connName}#${db}`] == null) {
-                this.nodeMap[`${connName}#${db}`] = new Map()
-            }
-            // construct a tree node list, the format of item key likes 'server/db#type/key'
-            return this.nodeMap[`${connName}#${db}`]
+        getRefreshInterval(name) {
+            const { refreshInterval = 5 } = this.serverProfile[name] || {}
+            return refreshInterval
         },
 
         /**
-         * remove keys in db
-         * @param {string} connName
-         * @param {number} db
-         * @param {string[]} keys
-         * @param {boolean} [sortInsert]
-         * @return {{success: boolean, newKey: number, newLayer: number, replaceKey: number}}
-         * @private
+         * set and save default refresh interval
+         * @param {string} name
+         * @param {number} interval
+         * @return {Promise<{success: boolean}|{msg: undefined, success: boolean}>}
          */
-        _addKeyNodes(connName: string, db: number, keys: string[], sortInsert:boolean) {
-            const result = { success: false, newLayer: 0, newKey: 0, replaceKey: 0 }
-            if (isEmpty(keys)) {
-                return result
-            }
-            const separator = this._getSeparator(connName)
-            const dbs = this.databases[connName]
-            if (dbs[db].children == null) {
-                dbs[db].children = []
-            }
-            const nodeMap = this._getNodeMap(connName, db)
-            const rootChildren = dbs[db].children
-            for (const key of keys) {
-                const keyParts = split(key, separator)
-                const len = size(keyParts)
-                const lastIdx = len - 1
-                let handlePath = ''
-                let children = rootChildren
-                for (let i = 0; i < len; i++) {
-                    handlePath += keyParts[i]
-                    if (i !== lastIdx) {
-                        // layer
-                        const nodeKey = `#${ConnectionType.RedisKey}/${handlePath}`
-                        let selectedNode = nodeMap.get(nodeKey)
-                        if (selectedNode == null) {
-                            selectedNode = {
-                                key: `${connName}/db${db}#${nodeKey}`,
-                                label: keyParts[i],
-                                db,
-                                keys: 0,
-                                redisKey: handlePath,
-                                type: ConnectionType.RedisKey,
-                                isLeaf: false,
-                                children: [],
-                            }
-                            nodeMap.set(nodeKey, selectedNode)
-                            if (sortInsert) {
-                                const index = sortedIndexBy(children, selectedNode, (elem) => {
-                                    return elem.key
-                                })
-                                children?.splice(index, 0, selectedNode)
-                            } else {
-                                children?.push(selectedNode)
-                            }
-                            result.newLayer += 1
-                        }
-                        children = selectedNode.children
-                        handlePath += separator
-                    } else {
-                        // key
-                        const nodeKey = `${ConnectionType.RedisValue}/${handlePath}`
-                        const replaceKey = nodeMap.has(nodeKey)
-                        const selectedNode = {
-                            key: `${connName}/db${db}#${nodeKey}`,
-                            label: keyParts[i],
-                            db,
-                            keys: 0,
-                            redisKey: handlePath,
-                            type: ConnectionType.RedisValue,
-                            isLeaf: true,
-                        }
-                        nodeMap.set(nodeKey, selectedNode)
-                        if (!replaceKey) {
-                            if (sortInsert) {
-                                const index = sortedIndexBy(children, selectedNode, (elem) => elem.key)
-                                children?.splice(index, 0, selectedNode)
-                                result.newKey += 1
-                            } else {
-                                children?.push(selectedNode)
-                                result.newKey += 1
-                            }
-                        } else {
-                            result.replaceKey += 1
-                        }
-                    }
-                }
-            }
-            return result
-        },
-
-        /**
-         *
-         * @param {DatabaseItem[]} nodeList
-         * @private
-         */
-        _sortNodes(nodeList: DatabaseItem[]) {
-            if (nodeList == null) {
-                return
-            }
-            nodeList.sort((a, b) => {
-                return a.key > b.key ? 1 : -1
-            })
-        },
-
-        /**
-         * tidy node by key
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} [key]
-         * @param {boolean} [skipResort]
-         * @private
-         */
-        _tidyNode(connName: string, db: number, key: string, skipResort: boolean) {
-            const nodeMap = this._getNodeMap(connName, db)
-            const separator = this._getSeparator(connName)
-            const keyParts = split(key, separator)
-            const totalParts = size(keyParts)
-            const dbNode = get(this.databases, [connName, db], {})
-            let node
-            // find last exists ancestor key
-            let i = totalParts - 1
-            for (; i > 0; i--) {
-                const parentKey = join(slice(keyParts, 0, i), separator)
-                node = nodeMap.get(`${ConnectionType.RedisKey}/${parentKey}`)
-                if (node != null) {
-                    break
-                }
-            }
-            if (node == null) {
-                node = dbNode
-            }
-            const keyCountUpdated = this._tidyNodeChildren(node, skipResort)
-
-            if (keyCountUpdated) {
-                // update key count of parent and above
-                for (; i > 0; i--) {
-                    const parentKey = join(slice(keyParts, 0, i), separator)
-                    const parentNode = nodeMap.get(`${ConnectionType.RedisKey}/${parentKey}`)
-                    if (parentNode == null) {
-                        break
-                    }
-                    parentNode.keys = sumBy(parentNode.children, 'keys')
-                }
-                // update key count of db
-                if ('keys' in dbNode) {
-                    dbNode.keys = sumBy(dbNode.children, 'keys')
-                }
-
-            }
-            return true
-        },
-
-        /**
-         * sort all node item's children and calculate keys count
-         * @param {DatabaseItem} node
-         * @param {boolean} skipSort skip sorting children
-         * @returns {boolean} return whether key count changed
-         * @private
-         */
-        _tidyNodeChildren(node: DatabaseItem, skipSort: boolean): boolean {
-            let count = 0
-            const totalChildren = size(node.children)
-            if (!isEmpty(node.children)) {
-                if (!skipSort) {
-                    this._sortNodes(node.children!)
-                }
-
-                for (const elem of node.children?.values() ?? []) {
-                    this._tidyNodeChildren(elem, skipSort)
-                    count += elem.keys
-                }
-            } else {
-                count += 1
-            }
-
-            if (node.keys !== count) {
-                node.keys = count
-                return true
-            }
-
-            return false
-        },
-
-        /**
-         * set redis key
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {string} keyType
-         * @param {any} value
-         * @param {number} ttl
-         * @returns {Promise<{[msg]: string, success: boolean}>}
-         */
-        async setKey(connName: string, db: number, key: string, keyType: string, value: any, ttl: number): Promise<{msg?: string, success: boolean}> {
-            try {
-                const { data, success, msg } = await SetKeyValue(connName, db, key, keyType, value, ttl)
-                if (success) {
-                    const { newKey = 0 } = this._addKeyNodes(connName, db, [key], true)
-                    if (newKey > 0) {
-                        this._tidyNode(connName, db, key, false)
-                    }
-                    return { success }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * update hash field
-         * when field is set, newField is null, delete field
-         * when field is null, newField is set, add new field
-         * when both field and newField are set, and field === newField, update field
-         * when both field and newField are set, and field !== newField, delete field and add newField
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {string} field
-         * @param {string} newField
-         * @param {string} value
-         * @returns {Promise<{[msg]: string, success: boolean, [updated]: {}}>}
-         */
-        async setHash(connName: string, db: number, key: string, field: string, newField: string | null, value: string | null): Promise<{msg?: string, success: boolean, updated?: Record<string, any>}> {
-            try {
-                const { data, success, msg } = await SetHashValue(connName, db, key, field, newField || '', value || '') as SetHashValueResponse
-                if (success) {
-                    const { updated = {} } = data!
-                    return { success, updated }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * insert or update hash field item
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {number }action 0:ignore duplicated fields 1:overwrite duplicated fields
-         * @param {string[]} fieldItems field1, value1, filed2, value2...
-         * @returns {Promise<{[msg]: string, success: boolean, [updated]: {}}>}
-         */
-        async addHashField(connName: string, db: number, key: string, action: number, fieldItems: string[]): Promise<{msg?: string, success: boolean, updated?: Record<string, any>}> {
-            try {
-                const { data, success, msg } = await AddHashField(connName, db, key, action, fieldItems) as AddHashFieldResponse
-                if (success) {
-                    const { updated = {} } = data!
-                    return { success, updated }
-                } else {
-                    return { success: false, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * remove hash field
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {string} field
-         * @returns {Promise<{[msg]: {}, success: boolean, [removed]: string[]}>}
-         */
-        async removeHashField(connName: string, db: number, key: string, field: string): Promise<{msg?: string, success: boolean, removed?: string[]}> {
-            try {
-                const { data, success, msg } = await SetHashValue(connName, db, key, field, '', '') as SetHashValueResponse
-                if (success) {
-                    const { removed = [] } = data!
-                    return { success, removed }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * insert list item
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {int} action 0: push to head, 1: push to tail
-         * @param {string[]}values
-         * @returns {Promise<*|{msg, success: boolean}>}
-         */
-        async addListItem(connName: string, db: number, key: string, action: number, values: string[]): Promise<{msg?: string, success: boolean}> {
-            try {
-                return AddListItem(connName, db, key, action, values)
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * prepend item to head of list
-         * @param connName
-         * @param db
-         * @param key
-         * @param values
-         * @returns {Promise<[msg]: string, success: boolean, [item]: []>}
-         */
-        async prependListItem(connName: string, db: number, key: string, values: string[]): Promise<{msg?: string, success: boolean, item?: any[]}> {
-            try {
-                const { data, success, msg } = await AddListItem(connName, db, key, 0, values) as AddListItemResponse
-                if (success) {
-                    const { left = [] } = data!
-                    return { success, item: left }
-                } else {
-                    return { success: false, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * append item to tail of list
-         * @param connName
-         * @param db
-         * @param key
-         * @param values
-         * @returns {Promise<[msg]: string, success: boolean, [item]: any[]>}
-         */
-        async appendListItem(connName: string, db: number, key: string, values: string[]): Promise<{msg?: string, success: boolean, item?: any[]}> {
-            try {
-                const { data, success, msg } = await AddListItem(connName, db, key, 1, values) as AddListItemResponse
-                if (success) {
-                    const { right = [] } = data!
-                    return { success, item: right }
-                } else {
-                    return { success: false, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * update value of list item by index
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {number} index
-         * @param {string} value
-         * @returns {Promise<{[msg]: string, success: boolean, [updated]: {}}>}
-         */
-        async updateListItem(connName: string, db: number, key: string, index: number, value: string): Promise<{msg?: string, success: boolean, updated?: Record<string, any>}> {
-            try {
-                const { data, success, msg } = await SetListItem(connName, db, key, index, value) as SetListItemResponse
-                if (success) {
-                    const { updated = {} } = data!
-                    return { success, updated }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * remove list item
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {number} index
-         * @returns {Promise<{[msg]: string, success: boolean, [removed]: string[]}>}
-         */
-        async removeListItem(connName: string, db: number, key: string, index: number): Promise<{msg?: string, success: boolean, removed?: string[]}> {
-            try {
-                const { data, success, msg } = await SetListItem(connName, db, key, index, '') as SetListItemResponse
-                if (success) {
-                    const { removed = [] } = data!
-                    return { success, removed }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * add item to set
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {string} value
-         * @returns {Promise<{[msg]: string, success: boolean}>}
-         */
-        async addSetItem(connName: string, db: number, key: string, value: string): Promise<{msg?: string, success: boolean}> {
-            try {
-                const { success, msg } = await SetSetItem(connName, db, key, false, [value])
-                if (success) {
-                    return { success }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * update value of set item
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {string} value
-         * @param {string} newValue
-         * @returns {Promise<{[msg]: string, success: boolean}>}
-         */
-        async updateSetItem(connName: string, db: number, key: string, value: string, newValue: string): Promise<{msg?: string, success: boolean}> {
-            try {
-                const { success, msg } = await UpdateSetItem(connName, db, key, value, newValue)
-                if (success) {
-                    return { success: true }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * remove item from set
-         * @param connName
-         * @param db
-         * @param key
-         * @param value
-         * @returns {Promise<{[msg]: string, success: boolean}>}
-         */
-        async removeSetItem(connName: string, db: number, key: string, value: string): Promise<{msg?: string, success: boolean}> {
-            try {
-                const { success, msg } = await SetSetItem(connName, db, key, true, [value])
-                if (success) {
-                    return { success }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * add item to sorted set
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {number} action
-         * @param {Object.<string, number>} vs value: score
-         * @returns {Promise<{[msg]: string, success: boolean}>}
-         */
-        async addZSetItem(connName: string, db: number, key: string, action: number, vs: Record<string, number>): Promise<{msg?: string, success: boolean}> {
-            try {
-                const { success, msg } = await AddZSetValue(connName, db, key, action, vs)
-                if (success) {
-                    return { success }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * update item of sorted set
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {string} value
-         * @param {string} newValue
-         * @param {number} score
-         * @returns {Promise<{[msg]: string, success: boolean, [updated]: {}, [removed]: []}>}
-         */
-        async updateZSetItem(connName: string, db: number, key: string, value: string, newValue: string, score: number): Promise<{msg?: string, success: boolean, updated?: Record<string, any>, removed?: string[]}> {
-            try {
-                const { data, success, msg } = await UpdateZSetValue(connName, db, key, value, newValue, score) as UpdateZSetValueResponse
-                if (success) {
-                    const { updated, removed } = data!
-                    return { success, updated, removed }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * remove item from sorted set
-         * @param {string} connName
-         * @param {number} db
-         * @param key
-         * @param {string} value
-         * @returns {Promise<{[msg]: string, success: boolean, [removed]: []}>}
-         */
-        async removeZSetItem(connName: string, db: number, key: string, value: string): Promise<{msg?: string, success: boolean, removed?: string[]}> {
-            try {
-                const { data, success, msg } = await UpdateZSetValue(connName, db, key, value, '', 0) as UpdateZSetValueResponse
-                if (success) {
-                    const { removed } = data!
-                    return { success, removed }
-                } else {
-                    return { success, msg }
-                }
-            } catch (e: any) {
-                return { success: false, msg: e.message }
-            }
-        },
-
-        /**
-         * reset key's ttl
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {number} ttl
-         * @returns {Promise<boolean>}
-         */
-        async setTTL(connName: string, db: number, key: string, ttl: number): Promise<boolean> {
-            try {
-                const { success, msg } = await SetKeyTTL(connName, db, key, ttl)
-                return success
-            } catch (e: any) {
-                return false
-            }
-        },
-
-        /**
-         *
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {boolean} [isLayer]
-         * @private
-         */
-        _deleteKeyNode(connName: string, db: number, key: string, isLayer: boolean): boolean {
-            const dbRoot = get(this.databases, [connName, db], {})
-            const separator = this._getSeparator(connName)
-            if (dbRoot == null) {
-                return false
-            }
-
-            const nodeMap = this._getNodeMap(connName, db)
-            const keyParts = split(key, separator)
-            const totalParts = size(keyParts)
-            if (isLayer) {
-                this._deleteChildrenKeyNodes(nodeMap, key)
-            }
-            // remove from parent in tree node
-            const parentKey = slice(keyParts, 0, totalParts - 1)
-            let parentNode
-            if (isEmpty(parentKey)) {
-                parentNode = dbRoot
-            } else {
-                parentNode = nodeMap.get(`${ConnectionType.RedisKey}/${join(parentKey, separator)}`)
-            }
-
-            // not found parent node
-            if (parentNode == null) {
-                return false
-            }
-            remove(parentNode.children, {
-                type: isLayer ? ConnectionType.RedisKey : ConnectionType.RedisValue,
-                redisKey: key,
-            })
-
-            // check and remove empty layer node
-            let i = totalParts - 1
-            for (; i >= 0; i--) {
-                const anceKey = join(slice(keyParts, 0, i), separator)
-                if (i > 0) {
-                    const anceNode = nodeMap.get(`${ConnectionType.RedisKey}/${anceKey}`)
-                    const redisKey = join(slice(keyParts, 0, i + 1), separator)
-                    remove(anceNode.children, { type: ConnectionType.RedisKey, redisKey })
-
-                    if (isEmpty(anceNode.children)) {
-                        nodeMap.delete(`${ConnectionType.RedisKey}/${anceKey}`)
-                    } else {
-                        break
-                    }
-                } else {
-                    if ('children' in dbRoot) {
-                        // last one, remove from db node
-                        remove(dbRoot.children!, { type: ConnectionType.RedisKey, redisKey: keyParts[0] })
-                    }
-
-                }
-            }
-            return true
-        },
-
-        /**
-         * delete node and all it's children from nodeMap
-         * @param nodeMap
-         * @param key
-         * @private
-         */
-        _deleteChildrenKeyNodes(nodeMap: Map<string, DatabaseItem>, key: string ) {
-            const mapKey = `${ConnectionType.RedisKey}/${key}`
-            const node = nodeMap.get(mapKey)
-            for (const child of node?.children || []) {
-                if (child.type === ConnectionType.RedisValue) {
-                    if (!nodeMap.delete(`${ConnectionType.RedisValue}/${child.redisKey}`)) {
-                        console.warn('delete:', `${ConnectionType.RedisValue}/${child.redisKey}`)
-                    }
-                } else if (child.type === ConnectionType.RedisKey) {
-                    this._deleteChildrenKeyNodes(nodeMap, child.redisKey as string)
-                }
-            }
-            if (!nodeMap.delete(mapKey)) {
-                console.warn('delete map key', mapKey)
-            }
-        },
-
-        /**
-         * delete redis key
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @returns {Promise<boolean>}
-         */
-        async deleteKey(connName: string, db: number, key: string): Promise<boolean> {
-            try {
-                const { data, success, msg } = await DeleteKey(connName, db, key)
-                if (success) {
-                    // update tree view data
-                    this._tidyNode(connName, db, key, true)
-                    // set tab content empty
-                    const tab = useTabStore()
-                    tab.emptyTab(connName)
-                    return true
-                }
-            } finally {
-            }
-            return false
-        },
-
-        /**
-         * delete keys with prefix
-         * @param connName
-         * @param db
-         * @param prefix
-         * @param keys
-         * @returns {Promise<boolean>}
-         */
-        async deleteKeyPrefix(connName: string, db: number, prefix: string) {
-            if (isEmpty(prefix)) {
-                return false
-            }
-            try {
-                const { data, success, msg } = await DeleteKey(connName, db, prefix)
-                if (success) {
-                    // const { deleted: keys = [] } = data
-                    // for (const key of keys) {
-                    //     await this._deleteKeyNode(connName, db, key)
-                    // }
-                    const separator = this._getSeparator(connName)
-                    if (endsWith(prefix, '*')) {
-                        prefix = prefix.substring(0, prefix.length - 1)
-                    }
-                    if (endsWith(prefix, separator)) {
-                        prefix = prefix.substring(0, prefix.length - 1)
-                    }
-                    this._deleteKeyNode(connName, db, prefix, true)
-                    this._tidyNode(connName, db, prefix, true)
-                    return true
-                }
-            } finally {
-            }
-            return false
-        },
-
-        /**
-         * rename key
-         * @param {string} connName
-         * @param {number} db
-         * @param {string} key
-         * @param {string} newKey
-         * @returns {Promise<{[msg]: string, success: boolean}>}
-         */
-        async renameKey(connName: string, db: number, key: string, newKey: string): Promise<{msg?: string, success: boolean}> {
-            const { success = false, msg } = await RenameKey(connName, db, key, newKey)
-            if (success) {
-                // delete old key and add new key struct
-                this._deleteKeyNode(connName, db, key, false)
-                this._addKeyNodes(connName, db, [newKey], false)
-                return { success: true }
-            } else {
+        async saveRefreshInterval(name, interval) {
+            const profile = this.serverProfile[name] || {}
+            profile.refreshInterval = interval
+            const { success, msg } = await SaveRefreshInterval(name, interval)
+            if (!success) {
                 return { success: false, msg }
             }
+            return { success: true }
         },
 
         /**
-         * get command history
-         * @param {number} [pageNo]
-         * @param {number} [pageSize]
-         * @returns {Promise<HistoryItem[]>}
+         * export connections to zip
+         * @return {Promise<void>}
          */
-        async getCmdHistory(pageNo: number, pageSize: number):Promise<HistoryItem[]> {
-            if (pageNo === undefined || pageSize === undefined) {
-                pageNo = -1
-                pageSize = -1
+        async exportConnections() {
+            const {
+                success,
+                msg,
+                data: { path = '' },
+            } = await ExportConnections()
+            if (!success) {
+                if (!isEmpty(msg)) {
+                    $message.error(msg)
+                    return
+                }
             }
-            try {
-                const { success, data = { list: [] } } = await GetCmdHistory(pageNo, pageSize)
-                const { list } = data
-                return list
-            } catch {
-                return []
-            }
+
+            $message.success(i18nGlobal.t('dialogue.handle_succ'))
         },
 
         /**
-         * get key filter pattern and filter type
-         * @param {string} server
-         * @param {number} db
-         * @returns @returns {{match: string, type: string}}
+         * import connections from zip
+         * @return {Promise<void>}
          */
-        getKeyFilter(server: string, db: number): { match: string, type: string } {
-            let match, type
-            const key = `${server}#${db}`
-            if (!this.keyFilter.hasOwnProperty(key)) {
-                match = this.keyFilter[`${server}#-1`] || '*'
-            } else {
-                match = this.keyFilter[key] || '*'
+        async importConnections() {
+            const { success, msg } = await ImportConnections()
+            if (!success) {
+                if (!isEmpty(msg)) {
+                    $message.error(msg)
+                    return
+                }
             }
-            type = this.typeFilter[`${server}#${db}`] || ''
-            return {
-                match,
-                type: toUpper(type),
-            }
+
+            $message.success(i18nGlobal.t('dialogue.handle_succ'))
         },
 
         /**
-         * set key filter
-         * @param {string} server
-         * @param {number} db
-         * @param {string} pattern
-         * @param {string} [type]
+         * parse redis url from text in clipboard
+         * @return {Promise<{}>}
          */
-        setKeyFilter(server: string, db: number, pattern: string, type: string):void {
-            this.keyFilter[`${server}#${db}`] = pattern || '*'
-
-            // 验证type是否合法
-            if (validType(type)) {
-                //  确保将type转化为 colorList类型中的值
-                const upperType = toUpper(type)
-                this.typeFilter[`${server}#${db}`] = colorList[upperType]
-            } else {
-                this.typeFilter[`${server}#${db}`] = ''
+        async parseUrlFromClipboard() {
+            const urlString = await ClipboardGetText()
+            if (isEmpty(urlString)) {
+                throw new Error('no text in clipboard')
             }
-        },
 
-        removeKeyFilter(server: string, db: number): void {
-            this.keyFilter[`${server}#${db}`] = '*'
-            delete this.typeFilter[`${server}#${db}`]
+            const { success, msg, data } = await ParseConnectURL(urlString)
+            if (!success || !isObject(data)) {
+                throw new Error(msg || 'unknown')
+            }
+
+            const out = data as Record<string, unknown>
+            out.url = urlString
+            return out
         },
     },
 })

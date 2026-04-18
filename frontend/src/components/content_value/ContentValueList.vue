@@ -1,223 +1,428 @@
-<script setup lang="ts">
+<script setup>
 import { computed, h, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ContentToolbar from '@/components/content_value/ContentToolbar.vue'
 import AddLink from '@/components/icons/AddLink.vue'
-import { NButton, NCode, NIcon, NInput, useMessage, DataTableColumn } from 'naive-ui'
-import { size } from 'lodash'
+import { NButton, NIcon, useThemeVars } from 'naive-ui'
+import { isEmpty, size, truncate } from 'lodash'
 import { types, types as redisTypes } from '@/consts/support_redis_type'
 import EditableTableColumn from '@/components/common/EditableTableColumn.vue'
-import useConnectionStore from '@/stores/connections'
-import useDialogStore from '@/stores/dialog'
-import type { PropType } from 'vue'
-
-interface ListValue extends Array<string> {}
-
-interface TableRow {
-  no: number
-  value: string
-}
-
-interface CurrentEditRow {
-  no: number
-  value: string | null
-}
+import useDialogStore from 'stores/dialog'
+import { decodeTypes, formatTypes } from '@/consts/value_view_type'
+import useBrowserStore from 'stores/browser'
+import LoadList from '@/components/icons/LoadList.vue'
+import LoadAll from '@/components/icons/LoadAll.vue'
+import IconButton from '@/components/common/IconButton.vue'
+import ContentEntryEditor from '@/components/content_value/ContentEntryEditor.vue'
+import FormatSelector from '@/components/content_value/FormatSelector.vue'
+import Edit from '@/components/icons/Edit.vue'
+import ContentSearchInput from '@/components/content_value/ContentSearchInput.vue'
+import { formatBytes } from '@/utils/byte_convert'
+import copy from 'copy-text-to-clipboard'
+import { TextAlignType } from '@/consts/text_align_type'
+import AlignLeft from '@/components/icons/AlignLeft.vue'
+import AlignCenter from '@/components/icons/AlignCenter.vue'
+import SwitchButton from '@/components/common/SwitchButton.vue'
+import { nativeRedisKey } from '@/utils/key_convert'
 
 const i18n = useI18n()
+const themeVars = useThemeVars()
 
-interface ListValue extends Array<string> {}
+const props = defineProps({
+    name: String,
+    db: Number,
+    keyPath: String,
+    keyCode: {
+        type: Array,
+        default: null,
+    },
+    ttl: {
+        type: Number,
+        default: -1,
+    },
+    value: {
+        // [{v: string|number[], dv: string}]
+        type: Array,
+        default: () => {},
+    },
+    size: Number,
+    length: Number,
+    format: {
+        type: String,
+        default: formatTypes.RAW,
+    },
+    decode: {
+        type: String,
+        default: decodeTypes.NONE,
+    },
+    end: Boolean,
+    loading: Boolean,
+    textAlign: Number,
+})
 
-interface Prob {
-  name: string
-  value: ListValue
-  db: number
-  keyPath: string
-  ttl: number
-}
+const emit = defineEmits(['loadmore', 'loadall', 'reload', 'match', 'update:textAlign'])
 
-const props = defineProps<Prob>()
+/**
+ *
+ * @type {ComputedRef<string|number[]>}
+ */
+const keyName = computed(() => {
+    return !isEmpty(props.keyCode) ? props.keyCode : props.keyPath
+})
 
-const connectionStore = useConnectionStore()
+const browserStore = useBrowserStore()
 const dialogStore = useDialogStore()
 const keyType = redisTypes.LIST
-
-const currentEditRow = ref<CurrentEditRow>({
-  no: 0,
-  value: null,
+const currentEditRow = reactive({
+    no: 0,
+    value: null,
+    format: formatTypes.RAW,
+    decode: decodeTypes.NONE,
 })
-
-const valueColumn = reactive<DataTableColumn<TableRow>>({
-  key: 'value',
-  title: i18n.t('value'),
-  align: 'center',
-  titleAlign: 'center',
-  filterOptionValue: null,
-  filter(value, row) {
-    return !!~row.value.indexOf(value.toString())
-  },
-  render: (row) => {
-    const isEdit = currentEditRow.value.no === row.no
-    if (isEdit) {
-      return h(NInput, {
-        value: currentEditRow.value.value || '',
-        type: 'textarea',
-        autosize: { minRows: 2, maxRows: 5 },
-        style: 'text-align: left;',
-        'onUpdate:value': (val: string) => {
-          currentEditRow.value.value = val
-        },
-      })
-    } else {
-      return h(NCode, { language: 'plaintext', wordWrap: true }, { default: () => row.value })
-    }
-  },
+const inEdit = computed(() => {
+    return currentEditRow.no > 0
 })
+const fullEdit = ref(false)
 
-const actionColumn: DataTableColumn<TableRow> = {
-  key: 'action',
-  title: i18n.t('action'),
-  width: 100,
-  align: 'center',
-  titleAlign: 'center',
-  fixed: 'right',
-  render: (row) => {
-    return h(EditableTableColumn, {
-      editing: currentEditRow.value.no === row.no,
-      bindKey: '#' + row.no,
-      onEdit: () => {
-        currentEditRow.value.no = row.no
-        currentEditRow.value.value = row.value
-      },
-      onDelete: async () => {
-        try {
-          const { success, msg } = await connectionStore.removeListItem(
-              props.name!,
-              props.db!,
-              props.keyPath!,
-              row.no - 1
-          )
-          if (success) {
-            connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!).then((r) => {})
-            message.success(i18n.t('delete_key_succ', { key: '#' + row.no }))
-          } else {
-            message.error(msg || i18n.t('delete_key_fail'))
-          }
-        } catch (e: any) {
-          message.error(e.message)
+const isCode = computed(() => {
+    return props.format === formatTypes.JSON || props.format === formatTypes.UNICODE_JSON
+})
+const valueFilterOption = ref(null)
+const valueColumn = computed(() => ({
+    key: 'value',
+    title: () => i18n.t('common.value'),
+    align: isCode.value ? 'left' : props.textAlign !== TextAlignType.Left ? 'center' : 'left',
+    titleAlign: 'center',
+    ellipsis: isCode.value
+        ? false
+        : {
+              tooltip: {
+                  style: {
+                      maxWidth: '50vw',
+                      maxHeight: '50vh',
+                  },
+                  scrollable: true,
+              },
+              lineClamp: 1,
+          },
+    filterOptionValue: valueFilterOption.value,
+    className: inEdit.value ? 'clickable' : '',
+    filter: (filterValue, row) => {
+        if (isEmpty(filterValue)) {
+            return true
         }
-      },
-      onSave: async () => {
-        try {
-          const { success, msg } = await connectionStore.updateListItem(
-              props.name!,
-              props.db!,
-              props.keyPath!,
-              currentEditRow.value.no - 1,
-              currentEditRow.value.value || ''
-          )
-          if (success) {
-            connectionStore.loadKeyValue(props.name!, props.db!, props.keyPath!).then((r) => {})
-            message.success(i18n.t('save_value_succ'))
-          } else {
-            message.error(msg || i18n.t('save_value_fail'))
-          }
-        } catch (e: any) {
-          message.error(e.message)
-        } finally {
-          currentEditRow.value.no = 0
-        }
-      },
-      onCancel: () => {
-        currentEditRow.value.no = 0
-      },
-    })
-  },
-}
-
-const columns = computed<DataTableColumn<TableRow>[]>(() => {
-  return [
-    {
-      key: 'no',
-      title: '#',
-      width: 80,
-      align: 'center',
-      titleAlign: 'center',
+        const val = row.dv || nativeRedisKey(row.v)
+        return !!~val.indexOf(filterValue.toString())
     },
-    valueColumn,
-    actionColumn,
-  ]
+    render: (row) => {
+        if (isCode.value) {
+            const val = row.dv || nativeRedisKey(row.v)
+            return h('pre', { class: 'pre-wrap' }, val)
+        } else {
+            const val = row.dv || nativeRedisKey(row.v, 500)
+            return truncate(val, { length: 500 })
+        }
+    },
+}))
+
+const startEdit = async (no, value) => {
+    currentEditRow.no = no
+    currentEditRow.value = value
+    currentEditRow.decode = props.decode
+    currentEditRow.format = props.format
+}
+
+/**
+ *
+ * @param {string|number} pos
+ * @param {string} value
+ * @param {decodeTypes} decode
+ * @param {formatTypes} format
+ * @return {Promise<void>}
+ */
+const saveEdit = async (pos, value, decode, format) => {
+    try {
+        const index = parseInt(pos) - 1
+        const row = props.value[index]
+        if (row == null) {
+            throw new Error('row not exists')
+        }
+
+        if (isEmpty(value)) {
+            value = currentEditRow.value
+        }
+
+        const { success, msg } = await browserStore.updateListItem({
+            server: props.name,
+            db: props.db,
+            key: keyName.value,
+            index: row.index,
+            value,
+            decode,
+            format,
+        })
+        if (success) {
+            $message.success(i18n.t('interface.save_value_succ'))
+        } else {
+            $message.error(msg)
+        }
+    } catch (e) {
+        $message.error(e.message)
+    }
+}
+
+const resetEdit = () => {
+    currentEditRow.no = 0
+    currentEditRow.value = null
+    // if (currentEditRow.format !== props.format || currentEditRow.decode !== props.decode) {
+    //     nextTick(() => onFormatChanged(currentEditRow.decode, currentEditRow.format))
+    // }
+}
+
+const actionColumn = {
+    key: 'action',
+    title: () => i18n.t('interface.action'),
+    width: 120,
+    align: 'center',
+    titleAlign: 'center',
+    fixed: 'right',
+    render: ({ index, v }, _) => {
+        return h(EditableTableColumn, {
+            editing: false,
+            bindKey: `#${index + 1}`,
+            onCopy: async () => {
+                copy(v)
+                $message.success(i18n.t('interface.copy_succ'))
+            },
+            onEdit: () => {
+                startEdit(index + 1, v)
+            },
+            onDelete: async () => {
+                try {
+                    const { success, msg } = await browserStore.removeListItem({
+                        server: props.name,
+                        db: props.db,
+                        key: keyName.value,
+                        index,
+                    })
+                    if (success) {
+                        $message.success(i18n.t('dialogue.delete.success', { key: `#${index + 1}` }))
+                    } else {
+                        $message.error(msg)
+                    }
+                } catch (e) {
+                    $message.error(e.message)
+                }
+            },
+        })
+    },
+}
+
+const columns = computed(() => {
+    if (!inEdit.value) {
+        return [
+            {
+                key: 'no',
+                title: '#',
+                width: 80,
+                align: 'center',
+                titleAlign: 'center',
+                render: ({ index }, _) => {
+                    return index + 1
+                },
+            },
+            valueColumn.value,
+            actionColumn,
+        ]
+    } else {
+        return [
+            {
+                key: 'no',
+                title: '#',
+                width: 80,
+                align: 'center',
+                titleAlign: 'center',
+                render: ({ index }, _) => {
+                    if (index + 1 === currentEditRow.no) {
+                        // editing row, show edit state
+                        return h(NIcon, { size: 16, color: 'red' }, () => h(Edit, { strokeWidth: 5 }))
+                    } else {
+                        return index + 1
+                    }
+                },
+            },
+            valueColumn.value,
+        ]
+    }
 })
 
-const tableData = computed<TableRow[]>(() => {
-  const data: TableRow[] = []
-  const len = size(props.value)
-  for (let i = 0; i < len; i++) {
-    data.push({
-      no: i + 1,
-      value: props.value[i],
-    })
-  }
-  return data
+const rowProps = ({ index, v }, _) => {
+    return {
+        onClick: () => {
+            // in edit mode, switch edit row by click
+            if (inEdit.value) {
+                startEdit(index + 1, v)
+            }
+        },
+    }
+}
+
+const entries = computed(() => {
+    const len = size(props.value)
+    return `${len} / ${Math.max(len, props.length)}`
 })
 
-const message = useMessage()
+const loadProgress = computed(() => {
+    const len = size(props.value)
+    return (len * 100) / Math.max(len, props.length)
+})
 
-const onAddValue = () => {
-  dialogStore.openAddFieldsDialog(props.name!, props.db!, props.keyPath!, types.LIST)
+const showMemoryUsage = computed(() => {
+    return !isNaN(props.size) && props.size > 0
+})
+
+const onAddValue = (value) => {
+    dialogStore.openAddFieldsDialog(props.name, props.db, props.keyPath, props.keyCode, types.LIST)
 }
 
-const filterValue = ref<string>('')
-
-const onFilterInput = (val: string) => {
-  // valueColumn.filterOptionValue = val
+const onFilterInput = (val) => {
+    valueFilterOption.value = val
 }
 
-const clearFilter = () => {
-  // valueColumn.filterOptionValue = null
+const onMatchInput = (matchVal, filterVal) => {
+    valueFilterOption.value = filterVal
+    emit('match', matchVal)
 }
 
-const onUpdateFilter = (filters: Record<string, string>, sourceColumn: DataTableColumn<TableRow>) => {
-  // valueColumn.filterOptionValue = filters[sourceColumn.key as string]
+const onUpdateFilter = (filters, sourceColumn) => {
+    valueFilterOption.value = filters[sourceColumn.key]
 }
+
+const onFormatChanged = (selDecode, selFormat) => {
+    emit('reload', selDecode, selFormat)
+}
+
+const searchInputRef = ref(null)
+defineExpose({
+    reset: () => {
+        resetEdit()
+        searchInputRef.value?.reset()
+    },
+})
 </script>
 
 <template>
-  <div class="content-wrapper flex-box-v">
-    <content-toolbar :db="props.db" :key-path="props.keyPath" :key-type="keyType" :server="props.name" :ttl="ttl" />
-    <div class="tb2 flex-box-h">
-      <div class="flex-box-h">
-        <n-input
-            v-model:value="filterValue"
-            :placeholder="$t('search')"
-            clearable
-            @clear="clearFilter"
-            @update:value="onFilterInput"
-        />
-      </div>
-      <div class="flex-item-expand"></div>
-      <n-button plain @click="onAddValue">
-        <template #icon>
-          <n-icon :component="AddLink" size="18" />
-        </template>
-        {{ $t('add_row') }}
-      </n-button>
+    <div class="content-wrapper flex-box-v">
+        <slot name="toolbar" />
+        <div class="tb2 value-item-part flex-box-h">
+            <div class="flex-box-h" style="max-width: 50%">
+                <content-search-input
+                    ref="searchInputRef"
+                    @filter-changed="onFilterInput"
+                    @match-changed="onMatchInput" />
+            </div>
+            <div class="flex-item-expand"></div>
+            <switch-button
+                :icons="[AlignCenter, AlignLeft]"
+                :stroke-width="3.5"
+                :t-tooltips="['interface.text_align_center', 'interface.text_align_left']"
+                :value="props.textAlign"
+                size="medium"
+                unselect-stroke-width="3"
+                @update:value="(val) => emit('update:textAlign', val)" />
+            <n-divider vertical />
+            <n-button-group>
+                <icon-button
+                    :disabled="props.end || props.loading"
+                    :icon="LoadList"
+                    border
+                    size="18"
+                    t-tooltip="interface.load_more_entries"
+                    @click="emit('loadmore')" />
+                <icon-button
+                    :disabled="props.end || props.loading"
+                    :icon="LoadAll"
+                    border
+                    size="18"
+                    t-tooltip="interface.load_all_entries"
+                    @click="emit('loadall')" />
+            </n-button-group>
+            <n-button :focusable="false" plain @click="onAddValue">
+                <template #icon>
+                    <n-icon :component="AddLink" size="18" />
+                </template>
+                {{ $t('interface.add_row') }}
+            </n-button>
+        </div>
+        <!-- loaded progress -->
+        <n-progress
+            :border-radius="0"
+            :color="props.end ? '#0000' : themeVars.primaryColor"
+            :height="2"
+            :percentage="loadProgress"
+            :processing="props.loading"
+            :show-indicator="false"
+            status="success"
+            type="line" />
+        <div class="value-wrapper value-item-part flex-box-h flex-item-expand">
+            <!-- table -->
+            <n-data-table
+                :bordered="false"
+                :bottom-bordered="false"
+                :columns="columns"
+                :data="props.value"
+                :loading="props.loading"
+                :row-key="(row) => row.no"
+                :row-props="rowProps"
+                :single-column="true"
+                :single-line="false"
+                class="flex-item-expand"
+                flex-height
+                size="small"
+                striped
+                virtual-scroll
+                @update:filters="onUpdateFilter" />
+
+            <!-- edit pane -->
+            <div
+                v-show="inEdit"
+                :style="{ position: fullEdit ? 'static' : 'relative' }"
+                class="entry-editor-container flex-item-expand"
+                style="width: 100%">
+                <content-entry-editor
+                    v-model:decode="currentEditRow.decode"
+                    v-model:format="currentEditRow.format"
+                    v-model:fullscreen="fullEdit"
+                    :field="currentEditRow.no"
+                    :field-label="$t('common.index')"
+                    :field-readonly="true"
+                    :key-path="props.keyPath"
+                    :show="inEdit"
+                    :value="currentEditRow.value"
+                    :value-label="$t('common.value')"
+                    class="flex-item-expand"
+                    style="width: 100%"
+                    @close="resetEdit"
+                    @save="saveEdit" />
+            </div>
+        </div>
+        <div class="value-footer flex-box-h">
+            <n-text v-if="!isNaN(props.length)">{{ $t('interface.entries') }}: {{ entries }}</n-text>
+            <n-divider v-if="showMemoryUsage" vertical />
+            <n-text v-if="showMemoryUsage">{{ $t('interface.memory_usage') }}: {{ formatBytes(props.size) }}</n-text>
+            <div class="flex-item-expand"></div>
+            <format-selector
+                v-show="!inEdit"
+                :decode="props.decode"
+                :disabled="inEdit"
+                :format="props.format"
+                @format-changed="onFormatChanged" />
+        </div>
     </div>
-    <div class="fill-height flex-box-h" style="user-select: text">
-      <n-data-table
-          :key="(row: TableRow) => row.no"
-          :columns="columns"
-          :data="tableData"
-          :single-column="true"
-          :single-line="false"
-          flex-height
-          max-height="100%"
-          size="small"
-          striped
-          virtual-scroll
-          @update:filters="onUpdateFilter"
-      />
-    </div>
-  </div>
 </template>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.value-footer {
+    border-top: v-bind('themeVars.borderColor') 1px solid;
+    background-color: v-bind('themeVars.tableHeaderColor');
+}
+</style>

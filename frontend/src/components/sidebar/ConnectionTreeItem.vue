@@ -1,7 +1,7 @@
-<script setup lang="ts">
-
-const title = defineModel<string>('title')
-
+<script setup>
+const props = defineProps({
+    title: String,
+})
 </script>
 
 <template>

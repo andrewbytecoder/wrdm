@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 const props = defineProps({
     strokeWidth: {
         type: [Number, String],
@@ -12,17 +12,15 @@ const props = defineProps({
         <path
             :stroke-width="props.strokeWidth"
             d="M7 42H43"
-            stroke="currentColorr"
+            stroke="currentColor"
             stroke-linecap="round"
-            stroke-linejoin="round"
-        />
+            stroke-linejoin="round" />
         <path
             :stroke-width="props.strokeWidth"
             d="M11 26.7199V34H18.3172L39 13.3081L31.6951 6L11 26.7199Z"
             fill="none"
             stroke="currentColor"
-            stroke-linejoin="round"
-        />
+            stroke-linejoin="round" />
     </svg>
 </template>
 

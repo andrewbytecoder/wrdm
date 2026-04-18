@@ -1,55 +1,61 @@
-<script setup lang="ts">
-import { reactive, watch } from 'vue'
-import useDialog from '@/stores/dialog'
-import { useMessage } from 'naive-ui'
-import { useI18n } from 'vue-i18n'
-import useConnectionStore from '@/stores/connections'
-import { isEmpty, size } from 'lodash'
+<script setup>
+import { computed, nextTick, reactive, ref, watchEffect } from 'vue'
+import useDialog from 'stores/dialog'
+import { isEmpty, map, size } from 'lodash'
+import useBrowserStore from 'stores/browser'
+import { decodeRedisKey } from '@/utils/key_convert'
 
-
-interface DeleteForm {
-    server: string
-    db: number
-    key: string
-    showAffected: boolean
-    loadingAffected: boolean
-    affectedKeys: string[]
-}
-
-const deleteForm = reactive<DeleteForm>({
+const deleteForm = reactive({
     server: '',
     db: 0,
     key: '',
     showAffected: false,
     loadingAffected: false,
     affectedKeys: [],
+    async: true,
+    direct: false,
 })
 
 const dialogStore = useDialog()
-const connectionStore = useConnectionStore()
-watch(
-    () => dialogStore.deleteKeyDialogVisible,
-    (visible) => {
-        if (visible) {
-            const { server, db, key } = dialogStore.deleteKeyParam
-            deleteForm.server = server
-            deleteForm.db = db
-            deleteForm.key = key
+const browserStore = useBrowserStore()
+
+watchEffect(() => {
+    if (dialogStore.deleteKeyDialogVisible) {
+        const { server, db, key } = dialogStore.deleteKeyParam
+        deleteForm.server = server
+        deleteForm.db = db
+        deleteForm.key = key
+        deleteForm.loadingAffected = false
+        // deleteForm.async = true
+        loading.value = false
+        deleting.value = false
+        if (key instanceof Array) {
+            deleteForm.showAffected = true
+            deleteForm.affectedKeys = key
+        } else {
             deleteForm.showAffected = false
-            deleteForm.loadingAffected = false
             deleteForm.affectedKeys = []
         }
     }
-)
+})
 
+const loading = ref(false)
+const deleting = ref(false)
 const scanAffectedKey = async () => {
     try {
+        loading.value = true
         deleteForm.loadingAffected = true
-        const { keys = [] } = await connectionStore.scanKeys(deleteForm.server, deleteForm.db, deleteForm.key)
+        const { keys = [] } = await browserStore.scanKeys({
+            server: deleteForm.server,
+            db: deleteForm.db,
+            match: deleteForm.key,
+            loadType: 2,
+        })
         deleteForm.affectedKeys = keys || []
         deleteForm.showAffected = true
     } finally {
         deleteForm.loadingAffected = false
+        loading.value = false
     }
 }
 
@@ -58,22 +64,36 @@ const resetAffected = () => {
     deleteForm.affectedKeys = []
 }
 
-const i18n = useI18n()
-const message = useMessage()
+const keyLines = computed(() => {
+    return map(deleteForm.affectedKeys, (k) => decodeRedisKey(k))
+})
+
 const onConfirmDelete = async () => {
     try {
-        const { server, db, key } = deleteForm
-        const success = await connectionStore.deleteKeyPrefix(server, db, key)
-        if (success) {
-            message.success(i18n.t('handle_succ'))
-        }
+        deleting.value = true
+        const { server, db, key, affectedKeys } = deleteForm
+        await nextTick()
+        browserStore.deleteKeys(server, db, affectedKeys).catch((e) => {})
     } catch (e) {
-      // 安全地处理错误：e 可能不是 Error 类型
-      if (e instanceof Error) {
-        message.error(e.message);
-      } else {
-        message.error(String(e));
-      }
+        $message.error(e.message)
+        return
+    } finally {
+        deleting.value = false
+    }
+    dialogStore.closeDeleteKeyDialog()
+}
+
+const onConfirmDirectDelete = async () => {
+    try {
+        deleting.value = true
+        const { server, db, key } = deleteForm
+        await nextTick()
+        browserStore.deleteByPattern(server, db, key).catch((e) => {})
+    } catch (e) {
+        $message.error(e.message)
+        return
+    } finally {
+        deleting.value = false
     }
     dialogStore.closeDeleteKeyDialog()
 }
@@ -87,53 +107,93 @@ const onClose = () => {
     <n-modal
         v-model:show="dialogStore.deleteKeyDialogVisible"
         :closable="false"
-        :close-on-esc="false"
         :mask-closable="false"
         :show-icon="false"
-        :title="$t('batch_delete_key')"
+        :title="$t('interface.batch_delete_key')"
+        close-on-esc
         preset="dialog"
         transform-origin="center"
-    >
-        <n-form
-            :model="deleteForm"
-            :show-require-mark="false"
-            label-align="right"
-            label-placement="left"
-            label-width="auto"
-        >
-            <n-form-item :label="$t('server')">
-                <n-input :value="deleteForm.server" readonly />
-            </n-form-item>
-            <n-form-item :label="$t('db_index')">
-                <n-input :value="deleteForm.db.toString()" readonly />
-            </n-form-item>
-            <n-form-item :label="$t('key_expression')" required>
-                <n-input v-model:value="deleteForm.key" placeholder="" @input="resetAffected" />
-            </n-form-item>
-            <n-card v-if="deleteForm.showAffected" :title="$t('affected_key')" size="small">
-                <n-skeleton v-if="deleteForm.loadingAffected" text :repeat="10" />
-                <n-log
-                    v-else
-                    :rows="10"
-                    :line-height="1.5"
-                    :lines="deleteForm.affectedKeys"
-                    style="user-select: text; cursor: text"
-                />
-            </n-card>
-        </n-form>
+        @esc="onClose">
+        <n-spin :show="loading">
+            <n-form :model="deleteForm" :show-require-mark="false" label-placement="top">
+                <n-grid :x-gap="10">
+                    <n-form-item-gi :label="$t('dialogue.key.server')" :span="12">
+                        <n-input :autofocus="false" :value="deleteForm.server" readonly />
+                    </n-form-item-gi>
+                    <n-form-item-gi :label="$t('dialogue.key.db_index')" :span="12">
+                        <n-input :autofocus="false" :value="deleteForm.db.toString()" readonly />
+                    </n-form-item-gi>
+                </n-grid>
+                <n-form-item
+                    v-if="!(deleteForm.key instanceof Array)"
+                    :label="$t('dialogue.key.key_expression')"
+                    required>
+                    <n-input v-model:value="deleteForm.key" placeholder="" @input="resetAffected" />
+                </n-form-item>
+                <n-checkbox v-if="!deleteForm.showAffected" v-model:checked="deleteForm.direct">
+                    {{ $t('dialogue.key.direct_delete') }}
+                </n-checkbox>
+                <n-card
+                    v-if="deleteForm.showAffected"
+                    :title="$t('dialogue.key.affected_key') + `(${size(deleteForm.affectedKeys)})`"
+                    embedded
+                    size="small">
+                    <n-skeleton v-if="deleteForm.loadingAffected" :repeat="10" text />
+                    <n-virtual-list v-else :item-size="25" :items="keyLines" class="list-wrapper">
+                        <template #default="{ item }">
+                            <div class="line-item content-value">
+                                {{ item }}
+                            </div>
+                        </template>
+                    </n-virtual-list>
+                </n-card>
+            </n-form>
+        </n-spin>
 
         <template #action>
             <div class="flex-item n-dialog__action">
-                <n-button @click="onClose">{{ $t('cancel') }}</n-button>
-                <n-button v-if="!deleteForm.showAffected" type="primary" @click="scanAffectedKey">
-                    {{ $t('show_affected_key') }}
+                <n-button :disabled="loading" :focusable="false" @click="onClose">{{ $t('common.cancel') }}</n-button>
+                <n-button
+                    v-if="deleteForm.direct"
+                    :focusable="false"
+                    :loading="loading"
+                    type="primary"
+                    @click="onConfirmDirectDelete">
+                    {{ $t('dialogue.key.confirm_delete') }}
                 </n-button>
-                <n-button v-else type="error" :disabled="isEmpty(deleteForm.affectedKeys)" @click="onConfirmDelete">
-                    {{ $t('confirm_delete_key', { num: size(deleteForm.affectedKeys) }) }}
-                </n-button>
+                <template v-else>
+                    <n-button
+                        v-if="!deleteForm.showAffected"
+                        :focusable="false"
+                        :loading="loading"
+                        type="primary"
+                        @click="scanAffectedKey">
+                        {{ $t('dialogue.key.show_affected_key') }}
+                    </n-button>
+                    <n-button
+                        v-else
+                        :disabled="isEmpty(deleteForm.affectedKeys)"
+                        :focusable="false"
+                        :loading="loading"
+                        type="primary"
+                        @click="onConfirmDelete">
+                        {{ $t('dialogue.key.confirm_delete_key', { num: size(deleteForm.affectedKeys) }) }}
+                    </n-button>
+                </template>
             </div>
         </template>
     </n-modal>
 </template>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.line-item {
+    line-height: 1.6;
+}
+
+.list-wrapper {
+    box-sizing: border-box;
+    max-height: 180px;
+    user-select: text;
+    cursor: text;
+}
+</style>

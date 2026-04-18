@@ -1,123 +1,226 @@
-<script setup lang="ts">
-import useDialog from '@/stores/dialog'
+<script setup>
+import { validType } from '@/consts/support_redis_type'
+import useDialog from 'stores/dialog'
 import Delete from '@/components/icons/Delete.vue'
 import Edit from '@/components/icons/Edit.vue'
 import Refresh from '@/components/icons/Refresh.vue'
 import Timer from '@/components/icons/Timer.vue'
 import RedisTypeTag from '@/components/common/RedisTypeTag.vue'
-import useConnectionStore from '@/stores/connections'
 import { useI18n } from 'vue-i18n'
-import { useMessage } from 'naive-ui'
 import IconButton from '@/components/common/IconButton.vue'
-import { useConfirmDialog } from '@/utils/confirm_dialog'
-import {ref} from 'vue'
+import Copy from '@/components/icons/Copy.vue'
+import { computed, onMounted, onUnmounted, reactive, watch } from 'vue'
+import { NIcon, useThemeVars } from 'naive-ui'
+import { timeout } from '@/utils/promise'
+import AutoRefreshForm from '@/components/common/AutoRefreshForm.vue'
+import { toHumanReadable } from '@/utils/date'
+import copy from 'copy-text-to-clipboard'
 
-interface Props {
-  server: string
-  db: number
-  keyType: string
-  keyPath: string
-  ttl?: number
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  keyType: 'STRING',
-  ttl: -1,
+const props = defineProps({
+    server: String,
+    db: Number,
+    keyType: {
+        type: String,
+        validator(value) {
+            return validType(value)
+        },
+        default: 'STRING',
+    },
+    keyPath: String,
+    keyCode: {
+        type: Array,
+        default: null,
+    },
+    ttl: {
+        type: Number,
+        default: -1,
+    },
+    loading: Boolean,
 })
 
-const border = ref<boolean>(true)
+const emit = defineEmits(['reload', 'rename', 'delete'])
 
+const autoRefresh = reactive({
+    on: false,
+    interval: 2,
+})
+
+const ttl = reactive({
+    value: 0,
+    expire: 0,
+    intervalID: 0,
+})
+
+const themeVars = useThemeVars()
 const dialogStore = useDialog()
-const connectionStore = useConnectionStore()
-const message = useMessage()
 const i18n = useI18n()
 
-const onReloadKey = () => {
-  if (props.server && props.db !== undefined && props.keyPath) {
-    connectionStore.loadKeyValue(props.server, props.db, props.keyPath)
-  }
-}
+const binaryKey = computed(() => {
+    return !!props.keyCode
+})
 
-const confirmDialog = useConfirmDialog()
-const onDeleteKey = () => {
-  confirmDialog.warning(i18n.t('remove_tip', { name: props.keyPath }), () => {
-    connectionStore.deleteKey(props.server, props.db, props.keyPath).then((success) => {
-      if (success) {
-        message.success(i18n.t('delete_key_succ', { key: props.keyPath }))
-      }
-    })
-  })
-}
-
-const onConfirmDelete = async () => {
-  if (props.server && props.db !== undefined && props.keyPath) {
-    const success = await connectionStore.deleteKey(props.server, props.db, props.keyPath)
-    if (success) {
-      message.success(i18n.t('delete_key_succ', { key: props.keyPath }))
+const ttlString = computed(() => {
+    if (ttl.value > 0) {
+        return toHumanReadable(ttl.value)
+    } else if (ttl.value < 0) {
+        return i18n.t('interface.forever')
+    } else {
+        return '00:00:00'
     }
-  }
+})
+
+const startAutoRefresh = async () => {
+    let lastExec = Date.now()
+    do {
+        if (!autoRefresh.on) {
+            break
+        }
+        await timeout(100)
+        if (props.loading || Date.now() - lastExec < autoRefresh.interval * 1000) {
+            continue
+        }
+        lastExec = Date.now()
+        emit('reload')
+    } while (true)
+    stopAutoRefresh()
+}
+
+const stopAutoRefresh = () => {
+    autoRefresh.on = false
+}
+
+const syncTTL = (seconds) => {
+    ttl.value = seconds
+    if (seconds >= 0) {
+        ttl.expire = Math.floor(Date.now() / 1000 + seconds)
+    } else {
+        ttl.expire = 0
+    }
+}
+
+watch(
+    () => props.keyPath,
+    () => {
+        stopAutoRefresh()
+    },
+)
+
+watch(
+    () => props.ttl,
+    (seconds) => syncTTL(seconds),
+)
+
+onMounted(() => {
+    syncTTL(props.ttl)
+    ttl.intervalID = setInterval(() => {
+        if (ttl.expire > 0) {
+            const nowSeconds = Math.floor(Date.now() / 1000)
+            ttl.value = Math.max(0, ttl.expire - nowSeconds)
+        } else {
+            ttl.value = -1
+        }
+    }, 1000)
+})
+
+onUnmounted(() => {
+    stopAutoRefresh()
+    if (ttl.intervalID > 0) {
+        clearInterval(ttl.intervalID)
+        ttl.intervalID = 0
+    }
+})
+
+const onToggleRefresh = (on) => {
+    if (on) {
+        startAutoRefresh()
+    } else {
+        stopAutoRefresh()
+    }
+}
+
+const onCopyKey = () => {
+    copy(props.keyPath)
+    $message.success(i18n.t('interface.copy_succ'))
+}
+
+const onTTL = () => {
+    dialogStore.openTTLDialog({
+        server: props.server,
+        db: props.db,
+        key: binaryKey.value ? props.keyCode : props.keyPath,
+        ttl: ttl.value,
+    })
 }
 </script>
 
-
-<!-- 右侧 Content 界面-->
 <template>
-  <div class="content-toolbar flex-box-h">
-    <n-input-group>
-      <RedisTypeTag :type="props.keyType" size="large"></RedisTypeTag>
-      <n-input v-model:value="props.keyPath">
-<!--        具名插槽，能放入到 n-input的后面-->
-        <template #suffix>
-<!--          带不带 : 只是是否动态绑定变量，对于后面的 probs 都能取到 -->
-          <icon-button :icon="Refresh"  tTooltip="reload" size="18" @click="onReloadKey" />
-        </template>
-      </n-input>
-    </n-input-group>
-    <n-button-group>
-      <n-tooltip>
-        <template #trigger>
-          <n-button @click="dialogStore.openTTLDialog(props.ttl)">
-            <template #icon>
-              <n-icon :component="Timer" size="18" />
-            </template>
-            <template v-if="ttl < 0">
-              {{ $t('forever') }}
-            </template>
-            <template v-else> {{ ttl }} {{ $t('second') }}</template>
-          </n-button>
-        </template>
-        TTL
+    <div class="content-toolbar flex-box-h">
+        <n-input-group>
+            <redis-type-tag :binary-key="binaryKey" :type="props.keyType" size="large" />
+            <n-input v-model:value="props.keyPath" :title="props.keyPath" readonly @dblclick="onCopyKey">
+                <template #suffix>
+                    <n-popover :delay="500" keep-alive-on-hover placement="bottom" trigger="hover">
+                        <template #trigger>
+                            <icon-button
+                                :loading="props.loading"
+                                size="18"
+                                @click="emit('reload')"
+                                @dblclick.stop="() => {}">
+                                <n-icon :size="props.size">
+                                    <refresh
+                                        :class="{ 'auto-rotate': autoRefresh.on }"
+                                        :color="autoRefresh.on ? themeVars.primaryColor : undefined"
+                                        :stroke-width="autoRefresh.on ? 6 : 3" />
+                                </n-icon>
+                            </icon-button>
+                        </template>
+                        <auto-refresh-form
+                            v-model:interval="autoRefresh.interval"
+                            v-model:on="autoRefresh.on"
+                            :default-value="2"
+                            :loading="props.loading"
+                            @toggle="onToggleRefresh" />
+                    </n-popover>
+                </template>
+            </n-input>
+            <icon-button :icon="Copy" border size="18" t-tooltip="interface.copy_key" @click="onCopyKey" />
+        </n-input-group>
+        <n-button-group>
+            <n-tooltip>
+                <template #trigger>
+                    <n-button :focusable="false" @click="onTTL">
+                        <template #icon>
+                            <n-icon :component="Timer" size="18" />
+                        </template>
+                        <span style="font-variant-numeric: tabular-nums">{{ ttlString }}</span>
+                    </n-button>
+                </template>
+                TTL{{ `${ttl > 0 ? ': ' + ttl + $t('common.second') : ''}` }}
             </n-tooltip>
             <icon-button
-          :border=border
-          :icon="Edit"
-          t-tooltip="rename_key"
-          size="18"
-          @click="dialogStore.openRenameKeyDialog(props.server!, props.db!, props.keyPath!)"
-      />
-      <!--            <n-button @click="dialogStore.openRenameKeyDialog(props.server, props.db, props.keyPath)">-->
-      <!--                <template #icon>-->
-      <!--                    <n-icon :component="Edit" size="18" />-->
-      <!--                </template>-->
-      <!--                {{ $t('rename_key') }}-->
-      <!--            </n-button>-->
-    </n-button-group>
-    <n-tooltip>
-      <template #trigger>
-        <n-button>
-          <template #icon>
-            <n-icon :component="Delete" size="18" @click="onDeleteKey" />
-          </template>
-        </n-button>
-      </template>
-      {{ $t('delete_key') }}
-    </n-tooltip>
-  </div>
+                :disabled="binaryKey"
+                :icon="Edit"
+                :t-tooltip="binaryKey ? 'dialogue.rename_binary_key_fail' : 'interface.rename_key'"
+                border
+                size="18"
+                @click="emit('rename')" />
+        </n-button-group>
+        <n-tooltip :show-arrow="false">
+            <template #trigger>
+                <n-button :focusable="false" @click="emit('delete')">
+                    <template #icon>
+                        <n-icon :component="Delete" size="18" />
+                    </template>
+                </n-button>
+            </template>
+            {{ $t('interface.delete_key') }}
+        </n-tooltip>
+    </div>
 </template>
 
 <style lang="scss" scoped>
 .content-toolbar {
-  align-items: center;
-  gap: 5px;
+    align-items: center;
+    gap: 5px;
 }
 </style>
