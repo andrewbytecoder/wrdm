@@ -24,8 +24,6 @@ declare module 'wailsjs/go/services/browserService.js' {
   export const AddStreamValue: WailsFn
   export const AddZSetValue: WailsFn
   export const BatchSetTTL: WailsFn
-  export const BrowseRemoveKeys: WailsFn
-  export const BrowseSetKeyFilter: WailsFn
   export const CleanCmdHistory: WailsFn
   export const CloseConnection: WailsFn
   export const ConvertValue: WailsFn
@@ -34,7 +32,6 @@ declare module 'wailsjs/go/services/browserService.js' {
   export const DeleteKeysByPattern: WailsFn
   export const ExportKey: WailsFn
   export const FlushDB: WailsFn
-  export const GetBrowserSnapshot: WailsFn
   export const GetClientList: WailsFn
   export const GetCmdHistory: WailsFn
   export const GetHashValue: WailsFn
@@ -48,7 +45,6 @@ declare module 'wailsjs/go/services/browserService.js' {
   export const LoadNextKeys: WailsFn
   export const OpenConnection: WailsFn
   export const OpenDatabase: WailsFn
-  export const ReloadKeyLayer: WailsFn
   export const RemoveStreamValues: WailsFn
   export const RenameKey: WailsFn
   export const ServerInfo: WailsFn

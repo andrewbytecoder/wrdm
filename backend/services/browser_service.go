@@ -236,10 +236,9 @@ func (b *browserService) OpenConnection(name string) (resp types.JSResp) {
 	resp.Data = map[string]any{
 		"db":      dbs,
 		"view":    selConn.KeyView,
-		"lastDB":  lastDB,
+		"lastDB":  selConn.LastDB,
 		"version": version,
 	}
-	browseInitFromOpen(name, selConn, dbs, version, lastDB)
 	return
 }
 
@@ -254,7 +253,6 @@ func (b *browserService) CloseConnection(name string) (resp types.JSResp) {
 			item.client.Close()
 		}
 	}
-	browseStates.deleteServer(name)
 	resp.Success = true
 	return
 }
@@ -431,9 +429,7 @@ func (b *browserService) ServerInfo(name string) (resp types.JSResp) {
 	}
 
 	resp.Success = true
-	parsed := b.parseInfo(res)
-	resp.Data = parsed
-	browseSetStatsFromParsed(name, parsed)
+	resp.Data = b.parseInfo(res)
 	return
 }
 
@@ -449,8 +445,6 @@ func (b *browserService) OpenDatabase(server string, db int) (resp types.JSResp)
 	}
 	client, ctx := item.client, item.ctx
 	maxKeys := b.loadDBSize(ctx, client)
-
-	browseOnOpenDatabase(server, db, maxKeys)
 
 	resp.Success = true
 	resp.Data = map[string]any{
@@ -588,7 +582,6 @@ func (b *browserService) LoadNextKeys(server string, db int, match, keyType stri
 		"end":     cursor == 0,
 		"maxKeys": maxKeys,
 	}
-	browseAfterLoadKeys(server, db, matchKeys, maxKeys, cursor == 0)
 	return
 }
 
@@ -629,49 +622,6 @@ func (b *browserService) LoadNextAllKeys(server string, db int, match, keyType s
 		"keys":    matchKeys,
 		"maxKeys": maxKeys,
 	}
-	browseAfterLoadAllKeys(server, db, matchKeys, maxKeys)
-	return
-}
-
-// ReloadKeyLayer scans keys for `match`, removes the existing `prefix` subtree, then merges results (tree folder refresh).
-func (b *browserService) ReloadKeyLayer(server string, db int, prefix, match, keyType string, exactMatch bool) (resp types.JSResp) {
-	item, err := b.getRedisClient(server, db)
-	if err != nil {
-		resp.Msg = err.Error()
-		return
-	}
-
-	client, ctx := item.client, item.ctx
-	var matchKeys []any
-	var maxKeys int64
-	fullScan := match == "*" || match == ""
-	if exactMatch && !fullScan {
-		if b.existsKey(ctx, client, match, keyType) {
-			matchKeys = []any{match}
-			maxKeys = 1
-		}
-	} else {
-		var scanErr error
-		matchKeys, _, scanErr = b.scanKeys(ctx, client, match, keyType, 0, 0)
-		if scanErr != nil {
-			resp.Msg = scanErr.Error()
-			return
-		}
-		b.setClientCursor(server, db, 0)
-		if fullScan {
-			maxKeys = b.loadDBSize(ctx, client)
-		} else {
-			maxKeys = int64(len(matchKeys))
-		}
-	}
-
-	resp.Success = true
-	resp.Data = map[string]any{
-		"keys":    matchKeys,
-		"maxKeys": maxKeys,
-		"end":     true,
-	}
-	browseReloadKeyLayer(server, db, prefix, matchKeys, maxKeys)
 	return
 }
 
@@ -702,29 +652,6 @@ func (b *browserService) LoadAllKeys(server string, db int, match, keyType strin
 	resp.Data = map[string]any{
 		"keys": matchKeys,
 	}
-	maxKeys := int64(b.loadDBSize(ctx, client))
-	browseAfterLoadAllKeys(server, db, matchKeys, maxKeys)
-	return
-}
-
-// GetBrowserSnapshot returns key tree/list and browse metadata for UI (single source on backend).
-func (b *browserService) GetBrowserSnapshot(server string, db int) (resp types.JSResp) {
-	resp.Success = true
-	resp.Data = browseSnapshotJSON(server, db)
-	return
-}
-
-// BrowseSetKeyFilter updates server-side browse filter state.
-func (b *browserService) BrowseSetKeyFilter(server string, pattern string, keyType string, exact bool) (resp types.JSResp) {
-	browseSetKeyFilter(server, pattern, keyType, exact)
-	resp.Success = true
-	return
-}
-
-// BrowseRemoveKeys updates browse tree only (e.g. soft-remove from UI) without deleting in Redis.
-func (b *browserService) BrowseRemoveKeys(server string, db int, keys []string) (resp types.JSResp) {
-	browseRemoveKeys(server, db, keys)
-	resp.Success = true
 	return
 }
 
@@ -756,8 +683,6 @@ func (b *browserService) GetKeyType(param types.KeySummaryParam) (resp types.JSR
 	default:
 		data.Type = strings.ToLower(keyType)
 	}
-
-	browseSetNodeRedisType(param.Server, key, data.Type)
 
 	resp.Success = true
 	resp.Data = data
@@ -1426,8 +1351,6 @@ func (b *browserService) SetKeyValue(param types.SetKeyParam) (resp types.JSResp
 		resp.Msg = err.Error()
 		return
 	}
-	browseAddKeys(param.Server, param.DB, []any{param.Key})
-
 	resp.Success = true
 	respData := map[string]any{}
 	if val, ok := savedValue.(string); ok {
@@ -2277,9 +2200,6 @@ func (b *browserService) DeleteKey(server string, db int, k any, async bool) (re
 		"deleted":     deletedKeys,
 		"deleteCount": len(deletedKeys),
 	}
-	if len(deletedKeys) > 0 {
-		browseRemoveKeys(server, db, deletedKeys)
-	}
 	return
 }
 
@@ -2376,13 +2296,6 @@ func (b *browserService) DeleteKeys(server string, db int, ks []any, serialNo st
 		Deleted:  deletedKeys,
 		Failed:   len(ks) - len(deletedKeys),
 	}
-	if len(deletedKeys) > 0 {
-		rm := make([]string, 0, len(deletedKeys))
-		for _, k := range deletedKeys {
-			rm = append(rm, strutil.DecodeRedisKey(k))
-		}
-		browseRemoveKeys(server, db, rm)
-	}
 	return
 }
 
@@ -2452,13 +2365,6 @@ func (b *browserService) DeleteKeysByPattern(server string, db int, pattern stri
 		Canceled: canceled,
 		Deleted:  deletedKeys,
 		Failed:   len(ks) - len(deletedKeys),
-	}
-	if len(deletedKeys) > 0 {
-		rm := make([]string, 0, len(deletedKeys))
-		for _, k := range deletedKeys {
-			rm = append(rm, strutil.DecodeRedisKey(k))
-		}
-		browseRemoveKeys(server, db, rm)
 	}
 	return
 }
@@ -2692,7 +2598,6 @@ func (b *browserService) FlushDB(server string, db int, async bool) (resp types.
 		resp.Msg = err.Error()
 		return
 	}
-	browseClearAllKeys(server, db)
 	resp.Success = true
 	return
 }
@@ -2716,7 +2621,6 @@ func (b *browserService) RenameKey(server string, db int, key, newKey string) (r
 		return
 	}
 
-	browseRenameKey(server, db, key, newKey)
 	resp.Success = true
 	return
 }

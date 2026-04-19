@@ -10,5 +10,4 @@ export const BrowserTabType = {
   PubMessage: 'pub_message',
 } as const
 
-
 export type BrowserTabTypeValue = (typeof BrowserTabType)[keyof typeof BrowserTabType]
