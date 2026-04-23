@@ -7,6 +7,7 @@ declare module '*.vue' {
 }
 
 /** Discrete API (mirrors `window.*` after `setupDiscreteApi`) */
+// 全局注入或者框架提供的工具函数
 declare const $message: Window['$message']
 declare const $notification: Window['$notification']
 declare const $dialog: Window['$dialog']
