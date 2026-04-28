@@ -1,8 +1,8 @@
 package maputil
 
 import (
-	. "tinyrdm/backend/utils"
-	"tinyrdm/backend/utils/coll"
+	. "github.com/andrewbytecoder/wrdm/backend/utils"
+	"github.com/andrewbytecoder/wrdm/backend/utils/coll"
 )
 
 // Get 获取键值对指定键的值, 如果不存在则返回自定默认值

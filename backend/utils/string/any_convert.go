@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
-	sliceutil "tinyrdm/backend/utils/slice"
+
+	sliceutil "github.com/andrewbytecoder/wrdm/backend/utils/slice"
 )
 
 func AnyToString(value interface{}, prefix string, layer int) (s string) {

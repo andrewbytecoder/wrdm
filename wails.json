@@ -1,20 +1,20 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "tinyrdm",
-  "outputfilename": "Tiny RDM",
+  "name": "wrdm",
+  "outputfilename": "wrdm",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
-    "name": "tiny-craft",
-    "email": "lykinhuang@outlook.com"
+    "name": "wrdm",
+    "email": "wangyazhoujy@gmail.com"
   },
   "info": {
-    "companyName": "Tiny Craft",
-    "productName": "Tiny RDM",
+    "companyName": "wrdm",
+    "productName": "wrdm",
     "productVersion": "1.0.0",
     "copyright": "Copyright © 2025",
-    "comments": "Tiny Redis Desktop Manager"
+    "comments": "Wails Redis Desktop Manager"
   }
 }

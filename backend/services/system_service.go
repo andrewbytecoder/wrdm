@@ -2,13 +2,14 @@ package services
 
 import (
 	"context"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	runtime2 "runtime"
 	"sync"
 	"time"
-	"tinyrdm/backend/consts"
-	"tinyrdm/backend/types"
-	sliceutil "tinyrdm/backend/utils/slice"
+
+	"github.com/andrewbytecoder/wrdm/backend/consts"
+	"github.com/andrewbytecoder/wrdm/backend/types"
+	sliceutil "github.com/andrewbytecoder/wrdm/backend/utils/slice"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type systemService struct {

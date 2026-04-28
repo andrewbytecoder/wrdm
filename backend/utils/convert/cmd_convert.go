@@ -3,7 +3,8 @@ package convutil
 import (
 	"encoding/base64"
 	"strings"
-	sliceutil "tinyrdm/backend/utils/slice"
+
+	sliceutil "github.com/andrewbytecoder/wrdm/backend/utils/slice"
 )
 
 type CmdConvert struct {

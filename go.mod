@@ -1,4 +1,4 @@
-module tinyrdm
+module github.com/andrewbytecoder/wrdm
 
 go 1.24.0
 

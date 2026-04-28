@@ -2,7 +2,8 @@ package sliceutil
 
 import (
 	"strings"
-	. "tinyrdm/backend/utils"
+
+	. "github.com/andrewbytecoder/wrdm/backend/utils"
 )
 
 // Map map items to new array

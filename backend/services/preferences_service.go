@@ -3,19 +3,20 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"github.com/adrg/sysfont"
-	runtime2 "github.com/wailsapp/wails/v2/pkg/runtime"
 	"net/http"
 	"os"
 	"sort"
 	"strings"
 	"sync"
-	"tinyrdm/backend/consts"
-	storage2 "tinyrdm/backend/storage"
-	"tinyrdm/backend/types"
-	"tinyrdm/backend/utils/coll"
-	convutil "tinyrdm/backend/utils/convert"
-	sliceutil "tinyrdm/backend/utils/slice"
+
+	"github.com/adrg/sysfont"
+	"github.com/andrewbytecoder/wrdm/backend/consts"
+	storage2 "github.com/andrewbytecoder/wrdm/backend/storage"
+	"github.com/andrewbytecoder/wrdm/backend/types"
+	"github.com/andrewbytecoder/wrdm/backend/utils/coll"
+	convutil "github.com/andrewbytecoder/wrdm/backend/utils/convert"
+	sliceutil "github.com/andrewbytecoder/wrdm/backend/utils/slice"
+	runtime2 "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type preferencesService struct {

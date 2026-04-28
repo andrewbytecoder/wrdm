@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	. "tinyrdm/backend/utils"
+
+	. "github.com/andrewbytecoder/wrdm/backend/utils"
 )
 
 type Void struct{}

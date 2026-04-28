@@ -3,8 +3,9 @@ package convutil
 import (
 	"errors"
 	"regexp"
-	"tinyrdm/backend/types"
-	strutil "tinyrdm/backend/utils/string"
+
+	"github.com/andrewbytecoder/wrdm/backend/types"
+	strutil "github.com/andrewbytecoder/wrdm/backend/utils/string"
 )
 
 type DataConvert interface {

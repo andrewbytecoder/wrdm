@@ -2,7 +2,8 @@ package convutil
 
 import (
 	"strings"
-	strutil "tinyrdm/backend/utils/string"
+
+	strutil "github.com/andrewbytecoder/wrdm/backend/utils/string"
 )
 
 type JsonConvert struct{}

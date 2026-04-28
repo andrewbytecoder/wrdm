@@ -5,12 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"github.com/klauspost/compress/zip"
-	"github.com/redis/go-redis/v9"
-	"github.com/vrischmann/userdir"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/proxy"
 	"io"
 	"net"
 	"net/url"
@@ -20,9 +14,16 @@ import (
 	"strings"
 	"sync"
 	"time"
-	. "tinyrdm/backend/storage"
-	"tinyrdm/backend/types"
-	_ "tinyrdm/backend/utils/proxy"
+
+	. "github.com/andrewbytecoder/wrdm/backend/storage"
+	"github.com/andrewbytecoder/wrdm/backend/types"
+	_ "github.com/andrewbytecoder/wrdm/backend/utils/proxy"
+	"github.com/klauspost/compress/zip"
+	"github.com/redis/go-redis/v9"
+	"github.com/vrischmann/userdir"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/proxy"
 )
 
 type cmdHistoryItem struct {

@@ -2,7 +2,8 @@ package strutil
 
 import (
 	"strconv"
-	sliceutil "tinyrdm/backend/utils/slice"
+
+	sliceutil "github.com/andrewbytecoder/wrdm/backend/utils/slice"
 )
 
 // EncodeRedisKey encode the redis key to integer array

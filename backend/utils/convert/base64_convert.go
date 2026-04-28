@@ -2,7 +2,8 @@ package convutil
 
 import (
 	"encoding/base64"
-	strutil "tinyrdm/backend/utils/string"
+
+	strutil "github.com/andrewbytecoder/wrdm/backend/utils/string"
 )
 
 type Base64Convert struct{}

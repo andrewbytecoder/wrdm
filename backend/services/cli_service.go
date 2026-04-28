@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"strings"
 	"sync"
-	"tinyrdm/backend/types"
-	sliceutil "tinyrdm/backend/utils/slice"
-	strutil "tinyrdm/backend/utils/string"
+
+	"github.com/andrewbytecoder/wrdm/backend/types"
+	sliceutil "github.com/andrewbytecoder/wrdm/backend/utils/slice"
+	strutil "github.com/andrewbytecoder/wrdm/backend/utils/string"
+	"github.com/redis/go-redis/v9"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type cliService struct {

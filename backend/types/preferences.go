@@ -1,6 +1,6 @@
 package types
 
-import "tinyrdm/backend/consts"
+import "github.com/andrewbytecoder/wrdm/backend/consts"
 
 type Preferences struct {
 	Behavior PreferencesBehavior  `json:"behavior" yaml:"behavior"`

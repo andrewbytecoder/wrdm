@@ -3,12 +3,13 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"strconv"
 	"sync"
 	"time"
-	"tinyrdm/backend/types"
+
+	"github.com/andrewbytecoder/wrdm/backend/types"
+	"github.com/redis/go-redis/v9"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type pubsubItem struct {

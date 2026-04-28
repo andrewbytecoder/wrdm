@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"os"
 	"strconv"
 	"sync"
 	"time"
-	"tinyrdm/backend/types"
+
+	"github.com/andrewbytecoder/wrdm/backend/types"
+	"github.com/redis/go-redis/v9"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type monitorItem struct {
