@@ -1,5 +1,5 @@
 ﻿import { defineStore } from 'pinia'
-import { lang } from '@/langs/index'
+import { lang } from '@/langs'
 import { cloneDeep, findIndex, get, isEmpty, join, map, pick, set, some, split } from 'lodash'
 import {
     CheckForUpdate,
@@ -16,6 +16,9 @@ import { h, nextTick } from 'vue'
 import { compareVersion } from '@/utils/version'
 import { typesIconStyle } from '@/consts/support_redis_type'
 import { TextAlignType } from '@/consts/text_align_type'
+import {types} from "wailsjs/go/models";
+import Preferences = types.Preferences;
+import {sassFalse} from "sass";
 
 const osTheme = useOsTheme()
 const usePreferencesStore = defineStore('preferences', {
@@ -24,17 +27,56 @@ const usePreferencesStore = defineStore('preferences', {
      * @property {string} name
      * @property {string} path
      */
+
     /**
      * @typedef {Object} Preferences
      * @property {Object} general
      * @property {Object} editor
      * @property {FontItem[]} fontList
      */
+
     /**
      *
      * @returns {Preferences}
      */
-    state: () => ({
+    state: (): {
+        behavior: {
+            welcomed: boolean;
+            asideWidth: number;
+            windowWidth: number;
+            windowHeight: number;
+            windowMaximised: boolean
+        };
+        general: {
+            theme: string;
+            language: string;
+            font: string;
+            fontFamily: any[];
+            fontSize: number;
+            scanSize: number;
+            keyIconStyle: number;
+            useSysProxy: boolean;
+            useSysProxyHttp: boolean;
+            checkUpdate: boolean;
+            skipVersion: string;
+            allowTrack: boolean
+        };
+        editor: {
+            font: string;
+            fontFamily: any[];
+            fontSize: number;
+            showLineNum: boolean;
+            showFolding: boolean;
+            dropText: boolean;
+            links: boolean;
+            entryTextAlign: 0
+        };
+        cli: { fontFamily: any[]; fontSize: number; cursorStyle: string };
+        buildInDecoder: any[];
+        decoder: any[];
+        lastPref: {};
+        fontList: any[]
+    } => ({
         behavior: {
             welcomed: false,
             asideWidth: 300,
@@ -52,7 +94,7 @@ const usePreferencesStore = defineStore('preferences', {
             keyIconStyle: 0,
             useSysProxy: false,
             useSysProxyHttp: false,
-            checkUpdate: true,
+            checkUpdate: false,
             skipVersion: '',
             allowTrack: true,
         },
@@ -460,7 +502,7 @@ const usePreferencesStore = defineStore('preferences', {
             this.savePreferences()
         },
 
-        async checkForUpdate(manual = false) {
+        async checkForUpdate(manual = false):Promise<void> {
             let msgRef = null
             if (manual) {
                 msgRef = $message.loading(i18nGlobal.t('interface.retrieving_version'), { duration: 0 })
